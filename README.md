@@ -6,6 +6,24 @@
 
 ![Dayline 桌面端](docs/assets/dayline-desktop.png)
 
+## 界面预览
+
+| 日历 · 周视图 | 看板 |
+| --- | --- |
+| ![日历](docs/assets/screenshots/calendar-week.png) | ![看板](docs/assets/screenshots/kanban.png) |
+
+| 时间线 | 四象限 |
+| --- | --- |
+| ![时间线](docs/assets/screenshots/timeline.png) | ![四象限](docs/assets/screenshots/matrix.png) |
+
+| 任务详情 | 专注 |
+| --- | --- |
+| ![任务详情](docs/assets/screenshots/task-detail.png) | ![专注](docs/assets/screenshots/focus.png) |
+
+| 统计 | 习惯 |
+| --- | --- |
+| ![统计](docs/assets/screenshots/stats.png) | ![习惯](docs/assets/screenshots/habits.png) |
+
 ## 目录
 
 ```text
