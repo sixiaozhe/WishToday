@@ -87,6 +87,7 @@ export function GlobalSearch({
             {tasks.map((task) => (
               <button
                 key={task.id}
+                data-task-id={task.id}
                 className="search-result"
                 onClick={() => {
                   onSelectTask(task);

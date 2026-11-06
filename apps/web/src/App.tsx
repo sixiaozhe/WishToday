@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import {
   BellRing,
   CalendarDays,
@@ -97,6 +102,10 @@ import { HabitsView } from './components/HabitsView';
 import { CountdownView } from './components/CountdownView';
 import { StatsView } from './components/StatsView';
 import { SummaryView } from './components/SummaryView';
+import { AssistantDock, type AssistantSeed } from './components/AssistantDock';
+import { TaskContextMenu } from './components/TaskContextMenu';
+import type { AiAction, AiApplyResult } from './ai/actions';
+import { loadAiSettings, saveAiSettings, type AiSettings } from './ai/settings';
 import { NoteView } from './components/NoteView';
 import { TagManager } from './components/TagManager';
 import { ProjectDialog } from './components/ProjectDialog';
@@ -226,6 +235,14 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => loadTheme());
+  const [aiSettings, setAiSettings] = useState<AiSettings>(() => loadAiSettings());
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantSeed, setAssistantSeed] = useState<AssistantSeed | null>(null);
+  const [taskMenu, setTaskMenu] = useState<{
+    x: number;
+    y: number;
+    taskId: string;
+  } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('week');
@@ -3012,6 +3029,155 @@ export default function App() {
     setSelectedTaskId(task.id);
   }
 
+  async function handleApplyAiActions(
+    actions: AiAction[],
+  ): Promise<AiApplyResult> {
+    const currentState = stateRef.current;
+    const result: AiApplyResult = { created: 0, subtasks: 0, errors: [] };
+    if (!currentState) {
+      result.errors.push('应用还没有加载完成');
+      return result;
+    }
+
+    const projects = currentState.projects.filter(
+      (project) => project.kind === 'task' && !project.deletedAt,
+    );
+    const inbox =
+      projects.find((project) => project.isInbox) ?? projects[0] ?? null;
+    if (!inbox) {
+      result.errors.push('找不到可用的清单');
+      return result;
+    }
+
+    const tags = currentState.tags;
+    function findProject(name?: string): Project {
+      const value = name?.trim().toLowerCase();
+      if (!value) return inbox as Project;
+      return (
+        projects.find(
+          (project) => project.name.trim().toLowerCase() === value,
+        ) ?? (inbox as Project)
+      );
+    }
+    function resolveTagIds(names?: string[]): string[] {
+      if (!names || names.length === 0) return [];
+      const ids: string[] = [];
+      for (const name of names) {
+        const value = name.trim().toLowerCase();
+        const tag = tags.find((item) => item.name.trim().toLowerCase() === value);
+        if (tag) ids.push(tag.id);
+      }
+      return [...new Set(ids)];
+    }
+
+    const newTasks: Task[] = [];
+    try {
+      for (const action of actions) {
+        if (action.type === 'create_task') {
+          const startDate =
+            action.startDate ?? (action.startTime ? todayKey() : null);
+          const task = createTask({
+            profileId: currentState.profile.id,
+            projectId: findProject(action.project).id,
+            title: action.title,
+            contentMd: action.notes ?? '',
+            startDate,
+            startTime: startDate ? action.startTime ?? null : null,
+            endTime:
+              startDate && action.startTime ? action.endTime ?? null : null,
+            priority: action.priority ?? 0,
+            tagIds: resolveTagIds(action.tags),
+          });
+          if (repository) await repository.saveTask(task);
+          newTasks.push(task);
+          result.created += 1;
+          continue;
+        }
+
+        const key = action.taskTitle.trim().toLowerCase();
+        const parent = currentState.tasks.find(
+          (task) =>
+            task.status === 'open' &&
+            !task.deletedAt &&
+            task.title.trim().toLowerCase() === key,
+        );
+        if (!parent) {
+          result.errors.push(`未找到任务「${action.taskTitle}」`);
+          continue;
+        }
+        for (const title of action.titles) {
+          const subtask = createTask({
+            profileId: currentState.profile.id,
+            projectId: parent.projectId,
+            parentId: parent.id,
+            title,
+            startDate: parent.startDate,
+            startTime: parent.startTime,
+            endTime: parent.endTime,
+          });
+          if (repository) await repository.saveTask(subtask);
+          newTasks.push(subtask);
+          result.subtasks += 1;
+        }
+      }
+    } catch (error) {
+      reportStorageError(error);
+      result.errors.push(
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+
+    if (newTasks.length > 0) {
+      const latest = stateRef.current ?? currentState;
+      const nextState: AppState = {
+        ...latest,
+        tasks: [...latest.tasks, ...newTasks],
+      };
+      if (!repository) saveState(nextState);
+      commit(nextState);
+    }
+    return result;
+  }
+
+  function handleAiSettingsChange(next: AiSettings) {
+    setAiSettings(next);
+    saveAiSettings(next);
+  }
+
+  function openAssistant() {
+    setAssistantSeed(null);
+    setAssistantOpen(true);
+  }
+
+  function closeAssistant() {
+    setAssistantOpen(false);
+    setAssistantSeed(null);
+  }
+
+  function openAssistantForTask(task: Task) {
+    setAssistantSeed({
+      key: Date.now(),
+      taskId: task.id,
+      prompt: `帮我拆解这个任务：${task.title}`,
+    });
+    setAssistantOpen(true);
+    setTaskMenu(null);
+  }
+
+  function handleAppContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = (event.target as HTMLElement).closest(
+      '[data-task-id]',
+    ) as HTMLElement | null;
+    if (!target) return;
+    const taskId = target.dataset.taskId;
+    const task = stateRef.current?.tasks.find(
+      (item) => item.id === taskId && !item.deletedAt,
+    );
+    if (!task) return;
+    event.preventDefault();
+    setTaskMenu({ x: event.clientX, y: event.clientY, taskId: task.id });
+  }
+
   async function handleAddProject(name: string, folderId: string | null = null) {
     const currentState = stateRef.current;
     if (!currentState) return;
@@ -3142,11 +3308,18 @@ export default function App() {
     setToast({ title: '已删除用户', body: `${user.name} 的本地数据已删除` });
   }
 
+  const contextTask = taskMenu
+    ? state.tasks.find(
+        (task) => task.id === taskMenu.taskId && !task.deletedAt,
+      ) ?? null
+    : null;
+
   return (
     <div
       className={`app ${sidebarOpen ? 'is-sidebar-open' : ''} ${
         selectedTask ? 'is-detail-open' : ''
       }`}
+      onContextMenu={handleAppContextMenu}
     >
       <Sidebar
         state={state}
@@ -3647,8 +3820,10 @@ export default function App() {
           theme={theme}
           notificationPermission={notificationPermission}
           storageLabel={storageLabel}
+          aiSettings={aiSettings}
           onThemeChange={setTheme}
           onPreferencesChange={(next) => void handlePreferencesChange(next)}
+          onAiSettingsChange={handleAiSettingsChange}
           onEnableNotifications={() => void enableNotifications()}
           onCheckHealth={handleCheckHealth}
           onClose={() => setSettingsOpen(false)}
@@ -3699,6 +3874,33 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {contextTask && taskMenu && (
+        <TaskContextMenu
+          x={taskMenu.x}
+          y={taskMenu.y}
+          task={contextTask}
+          onAskAi={() => openAssistantForTask(contextTask)}
+          onOpenTask={() => {
+            setSelectedTaskId(contextTask.id);
+            setTaskMenu(null);
+          }}
+          onClose={() => setTaskMenu(null)}
+        />
+      )}
+
+      <AssistantDock
+        open={assistantOpen}
+        profileId={state.profile.id}
+        settings={aiSettings}
+        state={state}
+        seed={assistantSeed}
+        onOpen={openAssistant}
+        onClose={closeAssistant}
+        onClearSeed={() => setAssistantSeed(null)}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onApplyActions={handleApplyAiActions}
+      />
     </div>
   );
 }

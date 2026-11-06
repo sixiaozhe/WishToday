@@ -123,6 +123,7 @@ export function TimelineView({
               return (
                 <div key={task.id} className="timeline-row">
                   <button
+                    data-task-id={task.id}
                     className={`timeline-label ${selectedTaskId === task.id ? 'is-selected' : ''}`}
                     onClick={() => onSelect(task)}
                   >
@@ -153,6 +154,7 @@ export function TimelineView({
                       />
                     ))}
                     <button
+                      data-task-id={task.id}
                       className={`timeline-bar ${task.status === 'completed' ? 'is-completed' : ''}`}
                       style={{
                         left: offset * DAY_WIDTH + 3,

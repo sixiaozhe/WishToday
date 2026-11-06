@@ -236,6 +236,66 @@ fn db_close(state: State<'_, DbManager>, database_name: String) -> Result<(), St
     Ok(())
 }
 
+#[derive(Deserialize)]
+struct AiHeader {
+    name: String,
+    value: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AiRequest {
+    url: String,
+    #[serde(default = "default_http_method")]
+    method: String,
+    #[serde(default)]
+    headers: Vec<AiHeader>,
+    #[serde(default)]
+    body: String,
+    timeout_seconds: Option<u64>,
+}
+
+fn default_http_method() -> String {
+    "POST".to_string()
+}
+
+#[derive(Serialize)]
+struct AiResponse {
+    status: u16,
+    body: String,
+}
+
+/// Proxies OpenAI-compatible requests through the Rust side so the desktop
+/// webview is not blocked by CORS when calling a user-configured model service.
+#[tauri::command]
+async fn ai_request(request: AiRequest) -> Result<AiResponse, String> {
+    let method = reqwest::Method::from_bytes(request.method.as_bytes())
+        .map_err(|error| format!("无效的请求方法：{error}"))?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(
+            request.timeout_seconds.unwrap_or(120).clamp(5, 300),
+        ))
+        .build()
+        .map_err(|error| format!("无法创建网络客户端：{error}"))?;
+
+    let mut builder = client.request(method, &request.url);
+    for header in &request.headers {
+        builder = builder.header(&header.name, &header.value);
+    }
+
+    let response = builder
+        .body(request.body)
+        .send()
+        .await
+        .map_err(|error| format!("网络请求失败：{error}"))?;
+    let status = response.status().as_u16();
+    let body = response
+        .text()
+        .await
+        .map_err(|error| format!("读取响应失败：{error}"))?;
+    Ok(AiResponse { status, body })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -243,7 +303,7 @@ pub fn run() {
             connections: Mutex::new(HashMap::new()),
         })
         .invoke_handler(tauri::generate_handler![
-            db_open, db_all, db_run, db_batch, db_close
+            db_open, db_all, db_run, db_batch, db_close, ai_request
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

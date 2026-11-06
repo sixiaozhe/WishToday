@@ -146,6 +146,7 @@ export function KanbanView({
                 {items.map((task) => (
                   <article
                     key={task.id}
+                    data-task-id={task.id}
                     className={`kanban-card ${
                       selectedTaskId === task.id ? 'is-selected' : ''
                     } ${task.status === 'completed' ? 'is-completed' : ''}`}

@@ -113,6 +113,7 @@ export function TaskRow({
       } ${abandoned ? 'is-abandoned' : ''} ${deleted ? 'is-deleted' : ''} ${
         completing ? 'is-completing' : ''
       }`}
+      data-task-id={task.id}
       onClick={() => onSelect(task)}
       role="button"
       tabIndex={0}

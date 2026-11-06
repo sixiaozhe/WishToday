@@ -140,7 +140,12 @@ export function SummaryView({
           <h3>完成的任务</h3>
           <div className="summary-list">
             {completed.slice(0, 30).map((task) => (
-              <button key={task.id} className="summary-row" onClick={() => onSelectTask(task)}>
+              <button
+                key={task.id}
+                data-task-id={task.id}
+                className="summary-row"
+                onClick={() => onSelectTask(task)}
+              >
                 <CheckCircle2 size={14} />
                 <span>{task.title}</span>
                 <em>{projectById.get(task.projectId)?.name ?? ''}</em>

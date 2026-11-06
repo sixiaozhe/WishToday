@@ -451,6 +451,7 @@ function CalendarChip({
 }) {
   return (
     <div
+      data-task-id={item.task.id}
       className={`calendar-chip segment-${item.segment} ${
         item.task.status === 'completed' ? 'is-completed' : ''
       } ${item.virtual ? 'is-virtual' : ''} ${draggable ? 'is-draggable' : ''}`}
@@ -505,6 +506,7 @@ function CalendarSpan({
 }) {
   return (
     <div
+      data-task-id={band.task.id}
       className={`calendar-span ${startsHere ? 'is-start' : ''} ${
         endsHere ? 'is-end' : ''
       } ${band.task.status === 'completed' ? 'is-completed' : ''} ${

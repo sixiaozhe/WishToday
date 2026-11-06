@@ -106,6 +106,7 @@ export function MatrixView({
                 {items.map((task) => (
                   <article
                     key={task.id}
+                    data-task-id={task.id}
                     className={`matrix-card ${selectedTaskId === task.id ? 'is-selected' : ''}`}
                     draggable
                     onDragStart={(event) => {

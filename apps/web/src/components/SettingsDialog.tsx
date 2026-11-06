@@ -1,6 +1,22 @@
 import { useState } from 'react';
-import { BellRing, Database, Moon, Sun } from 'lucide-react';
+import {
+  BellRing,
+  CheckCircle2,
+  Database,
+  Moon,
+  Sparkles,
+  Sun,
+  XCircle,
+} from 'lucide-react';
 import type { AppPreferences } from '@dayline/core';
+import {
+  AI_PRESETS,
+  AI_PROVIDER_ORDER,
+  applyAiPreset,
+  type AiProvider,
+  type AiSettings,
+} from '../ai/settings';
+import { testAiConnection } from '../ai/client';
 import { Modal } from './Modal';
 
 interface SettingsDialogProps {
@@ -8,8 +24,10 @@ interface SettingsDialogProps {
   theme: 'light' | 'dark';
   notificationPermission: NotificationPermission | 'unsupported';
   storageLabel?: string;
+  aiSettings: AiSettings;
   onThemeChange: (theme: 'light' | 'dark') => void;
   onPreferencesChange: (preferences: AppPreferences) => void;
+  onAiSettingsChange: (settings: AiSettings) => void;
   onEnableNotifications: () => void;
   onCheckHealth?: () => Promise<{ ok: boolean; messages: string[] }>;
   onClose: () => void;
@@ -20,8 +38,10 @@ export function SettingsDialog({
   theme,
   notificationPermission,
   storageLabel,
+  aiSettings,
   onThemeChange,
   onPreferencesChange,
+  onAiSettingsChange,
   onEnableNotifications,
   onCheckHealth,
   onClose,
@@ -29,6 +49,8 @@ export function SettingsDialog({
   const { calendar } = preferences;
   const [checking, setChecking] = useState(false);
   const [health, setHealth] = useState<{ ok: boolean; messages: string[] } | null>(null);
+  const [testingAi, setTestingAi] = useState(false);
+  const [aiTest, setAiTest] = useState<{ ok: boolean; message: string } | null>(null);
 
   return (
     <Modal
@@ -118,6 +140,131 @@ export function SettingsDialog({
         )}
         <p className="field-hint">
           任务可添加多条提醒；提醒触发后可在提醒中心或提示条中稍后提醒。
+        </p>
+      </section>
+
+      <section className="backup-section">
+        <h3>
+          <Sparkles size={13} /> AI 助手
+        </h3>
+        <div className="form-row">
+          <label className="field">
+            <span>模型服务</span>
+            <select
+              value={aiSettings.provider}
+              onChange={(event) => {
+                setAiTest(null);
+                onAiSettingsChange(
+                  applyAiPreset(aiSettings, event.target.value as AiProvider),
+                );
+              }}
+            >
+              {AI_PROVIDER_ORDER.map((provider) => (
+                <option key={provider} value={provider}>
+                  {AI_PRESETS[provider].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>模型名称</span>
+            <input
+              value={aiSettings.model}
+              placeholder="deepseek-chat"
+              onChange={(event) => {
+                setAiTest(null);
+                onAiSettingsChange({ ...aiSettings, model: event.target.value });
+              }}
+            />
+          </label>
+        </div>
+        <label className="field">
+          <span>API 地址</span>
+          <input
+            value={aiSettings.baseUrl}
+            placeholder="https://api.deepseek.com/v1"
+            onChange={(event) => {
+              setAiTest(null);
+              onAiSettingsChange({ ...aiSettings, baseUrl: event.target.value });
+            }}
+          />
+        </label>
+        <label className="field">
+          <span>API Key</span>
+          <input
+            type="password"
+            value={aiSettings.apiKey}
+            placeholder={
+              AI_PRESETS[aiSettings.provider].requiresKey
+                ? '只保存在本机'
+                : '本地模型通常留空'
+            }
+            autoComplete="off"
+            onChange={(event) => {
+              setAiTest(null);
+              onAiSettingsChange({ ...aiSettings, apiKey: event.target.value });
+            }}
+          />
+        </label>
+        <div className="form-row">
+          <label className="field">
+            <span>温度（0–2）</span>
+            <input
+              type="number"
+              min={0}
+              max={2}
+              step={0.1}
+              value={aiSettings.temperature}
+              onChange={(event) => {
+                setAiTest(null);
+                onAiSettingsChange({
+                  ...aiSettings,
+                  temperature: Math.max(
+                    0,
+                    Math.min(2, Number(event.target.value) || 0),
+                  ),
+                });
+              }}
+            />
+          </label>
+          <label className="field checkbox-field">
+            <input
+              type="checkbox"
+              checked={aiSettings.includeContext}
+              onChange={(event) =>
+                onAiSettingsChange({
+                  ...aiSettings,
+                  includeContext: event.target.checked,
+                })
+              }
+            />
+            <span>发送今日任务作为上下文</span>
+          </label>
+        </div>
+        <div className="button-row">
+          <button
+            className="button ghost"
+            disabled={testingAi}
+            onClick={() => {
+              setTestingAi(true);
+              setAiTest(null);
+              void testAiConnection(aiSettings)
+                .then((result) => setAiTest(result))
+                .finally(() => setTestingAi(false));
+            }}
+          >
+            <Sparkles size={14} />
+            {testingAi ? '测试中…' : '测试连接'}
+          </button>
+        </div>
+        {aiTest && (
+          <div className={`health-result ${aiTest.ok ? 'is-ok' : 'is-error'}`}>
+            {aiTest.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+            <span>{aiTest.message}</span>
+          </div>
+        )}
+        <p className="field-hint">
+          密钥只保存在本机，不写入备份，也不会上传到其他服务器。发送消息时，任务上下文会传给上面配置的模型服务；使用 Ollama 时不会离开本机。
         </p>
       </section>
 

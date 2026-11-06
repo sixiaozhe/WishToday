@@ -61,6 +61,23 @@ npm run desktop:dev
 npm run desktop:build
 ```
 
+## AI 助手
+
+右下角悬浮球可随时打开 AI 助手，在任意任务上右键也能直接向 AI 提问。
+
+![AI 助手](docs/assets/screenshots/assistant.png)
+
+1. 打开「设置 → AI 助手」
+2. 选择服务商：DeepSeek、OpenAI、Ollama 或自定义 OpenAI 兼容接口
+3. 填写 API 地址、模型名、API Key（Ollama 一般留空）
+4. 点「测试连接」
+
+- 密钥只保存在本机 localStorage，不写入备份，也不会上传到其他服务器。
+- 桌面端通过 Rust 代理发起请求，不受浏览器 CORS 限制。
+- Web 版受浏览器 CORS 限制：使用 Ollama 时需允许跨域，或改用允许跨域的网关。
+- 只有发送消息时才会把对话和（可选的）今日任务上下文发送到你配置的模型服务；使用 Ollama 本地模型时数据不离开本机。
+- AI 生成的任务和子任务不会直接写入，需要点「确认添加」。
+
 ## 当前实现范围
 
 - **用户管理**：侧边栏底部可创建、切换、重命名、删除用户；每个用户使用独立的 SQLite 数据库文件（OPFS）或独立的 localStorage 键（HTTP 回退），任务、清单、标签、习惯、专注、备份互不影响。
@@ -94,7 +111,8 @@ npm run desktop:build
 - **摘要**：近 7/14/30 天完成、新建、专注分钟、习惯打卡、每日节奏、清单贡献。
 - **统计/成就**：任务趋势、完成率、优先级/清单/标签分布、习惯概览、成就值与 8 个成就。
 - **备份与恢复**：JSON 完整备份、CSV 任务表、ICS 日历导出；JSON/CSV/ICS 导入；浏览器本地每日自动备份与恢复。
-- **设置页**：主题、日历显示时段、通知权限、快捷键说明。
+- **AI 助手**：右下角悬浮球打开对话面板；在任意任务上右键可「问 AI 助手」。支持自然语言创建任务、为已有任务拆解子任务，写入前需要确认。兼容 DeepSeek / OpenAI / Ollama / 任意 OpenAI 兼容接口。
+- **设置页**：主题、日历显示时段、通知权限、AI 模型配置、快捷键说明。
 - **本地持久化**：Web/PWA 使用 SQLite-WASM + OPFS，通过 Worker 执行 `schema-v1.sql`；FTS5 可用。桌面端通过 Tauri 的 `db_open/db_all/db_run/db_batch` 命令直接读写本机 SQLite，数据库位于 `%APPDATA%\com.dayline.desktop\`，每个本地用户一个文件。
 - OPFS 不可用时降级为内存数据库并提示；桌面端只有在原生 SQLite 驱动不可用时才回退到 localStorage，并在首次成功连接后自动迁移缓存中的任务。
 - 桌面端不注册 PWA Service Worker，避免 `tauri.localhost` 缓存旧构建；升级时会自动清理旧 Service Worker 缓存。
