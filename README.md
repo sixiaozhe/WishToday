@@ -4,7 +4,7 @@
 
 > 当前阶段：**v1 功能闭环（P0 + P1 主要模块）**。Web/PWA 使用 SQLite-WASM + OPFS，直接执行 `docs/specs/schema-v1.sql`；桌面端复用同一套 UI，并通过 Tauri 命令直接读写本机 SQLite 文件。Windows 安装包（MSI / NSIS）已可构建。
 
-![Dayline 桌面端](docs/assets/dayline-desktop.png)
+![Dayline 桌面端](docs/assets/screenshots/list-all.png)
 
 ## 界面预览
 
