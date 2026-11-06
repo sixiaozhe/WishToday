@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client", "vite-plugin-pwa/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@dayline/core": ["../../packages/core/src/index.ts"],
+      "@dayline/db": ["../../packages/db/src/index.ts"],
+      "@dayline/recurrence": ["../../packages/recurrence/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

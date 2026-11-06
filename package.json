@@ -1,0 +1,26 @@
+{
+  "name": "dayline",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Local-first task and time management app",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @dayline/web",
+    "build": "npm run build --workspace @dayline/web",
+    "preview": "npm run preview --workspace @dayline/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "npm run typecheck --workspace @dayline/core && npm run typecheck --workspace @dayline/recurrence && npm run typecheck --workspace @dayline/db && npm run typecheck --workspace @dayline/web",
+    "desktop:dev": "npm run dev --workspace @dayline/desktop",
+    "desktop:build": "npm run build --workspace @dayline/desktop"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

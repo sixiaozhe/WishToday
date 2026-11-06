@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#3b6ef6" />
+    <meta name="description" content="Dayline：本地优先的任务与时间管理" />
+    <title>Dayline</title>
+    <script>
+      // Older desktop builds installed a service worker on tauri.localhost,
+      // which can keep serving a stale bundle after an app upgrade. Clear it
+      // once and reload into the current build. The web deployment keeps its
+      // PWA worker.
+      (function () {
+        if (!('__TAURI_INTERNALS__' in window) && !('__TAURI__' in window)) return;
+        if (!('serviceWorker' in navigator)) return;
+        navigator.serviceWorker
+          .getRegistrations()
+          .then(function (registrations) {
+            if (!registrations.length) return;
+            return Promise.all(
+              registrations.map(function (registration) {
+                return registration.unregister();
+              }),
+            ).then(function () {
+              var clearCaches =
+                'caches' in window
+                  ? caches.keys().then(function (keys) {
+                      return Promise.all(
+                        keys.map(function (key) {
+                          return caches.delete(key);
+                        }),
+                      );
+                    })
+                  : Promise.resolve();
+              return clearCaches.then(function () {
+                try {
+                  if (sessionStorage.getItem('dayline:sw-cleared')) return;
+                  sessionStorage.setItem('dayline:sw-cleared', '1');
+                } catch (error) {
+                  return;
+                }
+                location.reload();
+              });
+            });
+          })
+          .catch(function () {
+            // No service worker support or storage blocked: nothing to clean.
+          });
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
