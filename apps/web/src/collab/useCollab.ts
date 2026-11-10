@@ -50,6 +50,33 @@ function parentFirst(tasks: Task[]): Task[] {
   ];
 }
 
+function normalizeGroupIdentity(
+  group: CollabGroup,
+  deviceId: string,
+  displayName: string,
+): { group: CollabGroup; needsRejoin: boolean } {
+  const hadSelf = group.members.some((member) => member.deviceId === deviceId);
+  let members = group.members;
+  if (!hadSelf) {
+    const byName = members.findIndex(
+      (member) => member.name === displayName,
+    );
+    if (byName >= 0) {
+      members = members.map((member, index) =>
+        index === byName ? { ...member, deviceId } : member,
+      );
+    } else {
+      members = [...members, { deviceId, name: displayName }];
+    }
+  }
+  const ownerId =
+    group.ownerName === displayName ? deviceId : group.ownerId;
+  return {
+    group: { ...group, ownerId, members },
+    needsRejoin: !hadSelf && ownerId !== deviceId,
+  };
+}
+
 function isTauri(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -97,6 +124,7 @@ export function useCollab({
   const baselineRef = useRef<Map<string, Map<string, number>>>(new Map());
   const incomingRef = useRef<(envelope: IncomingEnvelope) => void>(() => {});
   const runningRef = useRef(false);
+  const rejoinRef = useRef<Set<string>>(new Set());
 
   commitRef.current = commit;
   notifyRef.current = notify;
@@ -133,12 +161,26 @@ export function useCollab({
 
   useEffect(() => {
     if (!profileId) return;
+    const nextDeviceId = getDeviceId(profileId);
     const loaded = loadCollab(profileId).groups;
-    groupsRef.current = loaded;
-    setGroups(loaded);
+    const normalized: CollabGroup[] = [];
+    const pending: string[] = [];
+    for (const group of loaded) {
+      const result = normalizeGroupIdentity(
+        group,
+        nextDeviceId,
+        displayNameRef.current,
+      );
+      normalized.push(result.group);
+      if (result.needsRejoin) pending.push(result.group.id);
+    }
+    groupsRef.current = normalized;
+    saveCollab(profileId, { groups: normalized });
+    setGroups(normalized);
     setInvitesNow([]);
     baselineRef.current.clear();
-    setDeviceId(getDeviceId(profileId));
+    rejoinRef.current = new Set(pending);
+    setDeviceId(nextDeviceId);
   }, [profileId]);
 
   useEffect(() => {
@@ -184,6 +226,46 @@ export function useCollab({
       unlistenMessages?.();
     };
   }, [supported, deviceId]);
+
+  useEffect(() => {
+    if (!running || !deviceId || rejoinRef.current.size === 0) return;
+    for (const groupId of [...rejoinRef.current]) {
+      let group = groupsRef.current.find((item) => item.id === groupId);
+      if (!group) {
+        rejoinRef.current.delete(groupId);
+        continue;
+      }
+      if (group.ownerId === deviceId) {
+        rejoinRef.current.delete(groupId);
+        continue;
+      }
+      const ownerName = group.ownerName;
+      let ownerId = group.ownerId;
+      let ownerOnline = peers.some(
+        (peer) => peer.deviceId === ownerId && peer.online,
+      );
+      if (!ownerOnline) {
+        const ownerPeer = peers.find(
+          (peer) => peer.name === ownerName && peer.online,
+        );
+        if (ownerPeer) {
+          ownerId = ownerPeer.deviceId;
+          group = { ...group, ownerId, ownerName: ownerPeer.name };
+          updateGroupNow(group);
+          ownerOnline = true;
+        }
+      }
+      if (!ownerOnline) continue;
+      void sendTo(ownerId, {
+        type: 'invite_accept',
+        inviteId: `rejoin-${randomToken()}`,
+        groupId: group.id,
+        token: group.token,
+        member: { deviceId, name: displayNameRef.current },
+      });
+      rejoinRef.current.delete(groupId);
+    }
+  }, [running, peers, groups, deviceId]);
 
   async function sendTo(target: string, message: CollabMessage) {
     try {
@@ -328,7 +410,10 @@ export function useCollab({
       name: invite.groupName,
       ownerId: invite.ownerId,
       ownerName: invite.ownerName,
-      members: invite.members,
+      members: [
+        ...invite.members.filter((member) => member.deviceId !== deviceId),
+        { deviceId, name: displayNameRef.current },
+      ],
       token: invite.token,
       createdAt: Date.now(),
       assignments: {},
@@ -533,15 +618,35 @@ export function useCollab({
       ) {
         return;
       }
+      const incomingMember: CollabMember = {
+        deviceId: message.member.deviceId,
+        name: envelope.name || message.member.name,
+      };
+      const sameNameIndex = group.members.findIndex(
+        (member) => member.name === incomingMember.name,
+      );
+      let members = [...group.members];
+      let assignments = group.assignments;
+      if (sameNameIndex >= 0) {
+        const staleId = members[sameNameIndex]?.deviceId;
+        members = members.map((member, index) =>
+          index === sameNameIndex ? incomingMember : member,
+        );
+        if (staleId) {
+          assignments = Object.fromEntries(
+            Object.entries(assignments).map(([taskId, deviceIds]) => [
+              taskId,
+              deviceIds.map((id) => (id === staleId ? incomingMember.deviceId : id)),
+            ]),
+          );
+        }
+      } else {
+        members.push(incomingMember);
+      }
       const updated: CollabGroup = {
         ...group,
-        members: [
-          ...group.members,
-          {
-            deviceId: message.member.deviceId,
-            name: envelope.name || message.member.name,
-          },
-        ],
+        members,
+        assignments,
       };
       updateGroupNow(updated);
       void sendTo(message.member.deviceId, buildSnapshot(updated)).then(() =>

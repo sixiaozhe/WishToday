@@ -806,6 +806,8 @@ export function TaskDetail({
             </div>
             <p className="field-hint">
               被关联的成员会在群清单中看到这个任务，并显示这里的成员头像。
+              {collabMembers.length < 2 &&
+                ' 目前群组里只有你，等待其他成员加入后这里会显示他们。'}
             </p>
           </div>
         )}
