@@ -385,11 +385,7 @@ export function useCollab({
     const byId = new Map(tasks.map((task) => [task.id, task]));
     for (const remote of parentFirst(message.tasks ?? [])) {
       const existing = byId.get(remote.id);
-      if (
-        existing &&
-        existing.updatedAt > remote.updatedAt &&
-        !existing.deletedAt
-      ) {
+      if (existing && existing.updatedAt > remote.updatedAt) {
         continue;
       }
       const normalized: Task = {
