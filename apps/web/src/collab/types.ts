@@ -109,6 +109,14 @@ export interface AssignMessage {
   assignees: string[];
 }
 
+export interface SyncUploadMessage {
+  type: 'sync_upload';
+  groupId: string;
+  token: string;
+  tasks: Task[];
+  assignments: Record<string, string[]>;
+}
+
 export interface PingMessage {
   type: 'ping';
 }
@@ -121,6 +129,7 @@ export type CollabMessage =
   | CollabSnapshot
   | TaskMessage
   | AssignMessage
+  | SyncUploadMessage
   | PingMessage;
 
 export interface IncomingEnvelope {

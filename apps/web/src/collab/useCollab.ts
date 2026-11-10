@@ -23,6 +23,7 @@ import type {
   InviteAcceptMessage,
   InviteMessage,
   MembersMessage,
+  SyncUploadMessage,
   TaskMessage,
 } from './types';
 
@@ -129,6 +130,9 @@ export function useCollab({
   const incomingRef = useRef<(envelope: IncomingEnvelope) => void>(() => {});
   const runningRef = useRef(false);
   const rejoinRef = useRef<Set<string>>(new Set());
+  const lastSyncRef = useRef<Map<string, number>>(new Map());
+  const onlineRef = useRef<Map<string, boolean>>(new Map());
+  const [syncTick, setSyncTick] = useState(0);
 
   commitRef.current = commit;
   notifyRef.current = notify;
@@ -280,6 +284,57 @@ export function useCollab({
     }
   }, [running, peers, groups, deviceId]);
 
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => {
+      setSyncTick((value) => value + 1);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+
+  useEffect(() => {
+    if (!running || !deviceId) return;
+    const now = Date.now();
+    const online = new Map(peers.map((peer) => [peer.deviceId, peer.online]));
+    for (const group of groupsRef.current) {
+      if (group.ownerId === deviceId) {
+        for (const member of group.members) {
+          if (member.deviceId === deviceId) continue;
+          if (!online.get(member.deviceId)) continue;
+          const key = `${group.id}:${member.deviceId}`;
+          const last = lastSyncRef.current.get(key) ?? 0;
+          const wasOnline = onlineRef.current.get(member.deviceId) ?? false;
+          if (wasOnline && now - last < 50_000) continue;
+          lastSyncRef.current.set(key, now);
+          void sendTo(member.deviceId, buildSnapshot(group));
+        }
+      } else {
+        let ownerId = group.ownerId;
+        if (!online.get(ownerId)) {
+          const ownerPeer = peers.find(
+            (peer) => peer.name === group.ownerName && peer.online,
+          );
+          if (ownerPeer) {
+            ownerId = ownerPeer.deviceId;
+            updateGroupNow({
+              ...group,
+              ownerId,
+              ownerName: ownerPeer.name,
+            });
+          }
+        }
+        if (!online.get(ownerId)) continue;
+        const key = `${group.id}:${ownerId}`;
+        const last = lastSyncRef.current.get(key) ?? 0;
+        const wasOnline = onlineRef.current.get(ownerId) ?? false;
+        if (wasOnline && now - last < 50_000) continue;
+        lastSyncRef.current.set(key, now);
+        void sendTo(ownerId, buildUpload(group));
+      }
+    }
+    onlineRef.current = online;
+  }, [running, peers, groups, deviceId, syncTick, state?.profile.id]);
+
   async function sendTo(target: string, message: CollabMessage) {
     try {
       await invokeCollab('collab_send', { deviceId: target, message });
@@ -334,6 +389,21 @@ export function useCollab({
         name: group.name,
         color: project?.color ?? '#8b5cf6',
       },
+      tasks: local
+        ? parentFirst(
+            local.tasks.filter((task) => task.projectId === group.id),
+          )
+        : [],
+      assignments: group.assignments,
+    };
+  }
+
+  function buildUpload(group: CollabGroup): SyncUploadMessage {
+    const local = stateRef.current;
+    return {
+      type: 'sync_upload',
+      groupId: group.id,
+      token: group.token,
       tasks: local
         ? parentFirst(
             local.tasks.filter((task) => task.projectId === group.id),
@@ -472,6 +542,7 @@ export function useCollab({
     if (!local) return;
 
     let next = local;
+    let stateChanged = false;
     if (!next.projects.some((project) => project.id === message.group.id)) {
       const now = Date.now();
       const project: Project = {
@@ -491,6 +562,7 @@ export function useCollab({
         await repositoryRef.current.saveProject(project);
       }
       next = { ...next, projects: [...next.projects, project] };
+      stateChanged = true;
     }
 
     const baseline = baselineRef.current.get(group.id) ?? new Map();
@@ -498,7 +570,7 @@ export function useCollab({
     const byId = new Map(tasks.map((task) => [task.id, task]));
     for (const remote of parentFirst(message.tasks ?? [])) {
       const existing = byId.get(remote.id);
-      if (existing && existing.updatedAt > remote.updatedAt) {
+      if (existing && existing.updatedAt >= remote.updatedAt) {
         continue;
       }
       const normalized: Task = {
@@ -516,6 +588,7 @@ export function useCollab({
       }
       byId.set(normalized.id, normalized);
       baseline.set(normalized.id, normalized.updatedAt);
+      stateChanged = true;
     }
     baselineRef.current.set(group.id, baseline);
 
@@ -528,7 +601,95 @@ export function useCollab({
       assignments: { ...group.assignments, ...(message.assignments ?? {}) },
     };
     updateGroupNow(updatedGroup);
-    commitRef.current({ ...next, tasks });
+    if (stateChanged) {
+      commitRef.current({ ...next, tasks });
+    }
+  }
+
+  async function applyUpload(
+    message: SyncUploadMessage,
+    envelope: IncomingEnvelope,
+  ) {
+    const group = groupsRef.current.find((item) => item.id === message.groupId);
+    if (!group || group.token !== message.token) return;
+    const isOwner =
+      group.ownerId === deviceId ||
+      group.ownerName === displayNameRef.current;
+    if (!isOwner) return;
+    const local = stateRef.current;
+    if (!local) return;
+
+    let members = [...group.members];
+    const byDevice = members.findIndex(
+      (member) => member.deviceId === envelope.from,
+    );
+    if (byDevice >= 0) {
+      members = members.map((member, index) =>
+        index === byDevice ? { ...member, name: envelope.name || member.name } : member,
+      );
+    } else {
+      const byName = members.findIndex(
+        (member) => member.name === envelope.name,
+      );
+      if (byName >= 0) {
+        members = members.map((member, index) =>
+          index === byName
+            ? { deviceId: envelope.from, name: envelope.name }
+            : member,
+        );
+      } else if (envelope.name) {
+        members.push({ deviceId: envelope.from, name: envelope.name });
+      }
+    }
+
+    const baseline = baselineRef.current.get(group.id) ?? new Map();
+    let tasks = [...local.tasks];
+    let stateChanged = false;
+    const byId = new Map(tasks.map((task) => [task.id, task]));
+    for (const remote of parentFirst(message.tasks ?? [])) {
+      const existing = byId.get(remote.id);
+      if (existing && existing.updatedAt >= remote.updatedAt) continue;
+      const normalized: Task = {
+        ...remote,
+        profileId: local.profile.id,
+        projectId: group.id,
+      };
+      if (repositoryRef.current) {
+        await repositoryRef.current.saveTask(normalized);
+      }
+      if (existing) {
+        tasks = tasks.map((task) =>
+          task.id === normalized.id ? normalized : task,
+        );
+      } else {
+        tasks.push(normalized);
+      }
+      byId.set(normalized.id, normalized);
+      baseline.set(normalized.id, normalized.updatedAt);
+      stateChanged = true;
+    }
+    baselineRef.current.set(group.id, baseline);
+
+    const updatedGroup: CollabGroup = {
+      ...group,
+      ownerId: deviceId,
+      members,
+      assignments: {
+        ...group.assignments,
+        ...(message.assignments ?? {}),
+      },
+    };
+    updateGroupNow(updatedGroup);
+    if (stateChanged) {
+      commitRef.current({ ...local, tasks });
+    }
+
+    const targets = members
+      .filter((member) => member.deviceId !== deviceId)
+      .map((member) => member.deviceId);
+    if (targets.length > 0) {
+      void sendMany(targets, buildSnapshot(updatedGroup));
+    }
   }
 
   async function applyTask(message: TaskMessage, envelope: IncomingEnvelope) {
@@ -719,6 +880,11 @@ export function useCollab({
 
     if (message.type === 'snapshot') {
       void applySnapshot(message, envelope);
+      return;
+    }
+
+    if (message.type === 'sync_upload') {
+      void applyUpload(message, envelope);
       return;
     }
 
