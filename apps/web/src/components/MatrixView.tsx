@@ -9,6 +9,7 @@ import {
   type Task,
   type TaskPatch,
 } from '@dayline/core';
+import { AssigneeAvatars } from './AssigneeAvatars';
 
 interface MatrixViewProps {
   tasks: Task[];
@@ -16,6 +17,10 @@ interface MatrixViewProps {
   onSelect: (task: Task) => void;
   onToggle: (task: Task) => void;
   onUpdate: (task: Task, patch: TaskPatch) => void;
+  assigneesForTask?: (task: Task) => Array<{
+    deviceId: string;
+    name: string;
+  }>;
 }
 
 type QuadrantId = 'do' | 'plan' | 'delegate' | 'later';
@@ -38,6 +43,7 @@ export function MatrixView({
   onSelect,
   onToggle,
   onUpdate,
+  assigneesForTask,
 }: MatrixViewProps) {
   const today = todayKey();
 
@@ -129,6 +135,12 @@ export function MatrixView({
                       <div className="matrix-card-meta">
                         {task.startDate ? <span>{formatDateLabel(task.startDate)}</span> : <span>未安排</span>}
                         {task.priority > 0 && <span>优先级 {task.priority}</span>}
+                        {assigneesForTask && (
+                          <AssigneeAvatars
+                            people={assigneesForTask(task)}
+                            size="xs"
+                          />
+                        )}
                       </div>
                     </div>
                   </article>

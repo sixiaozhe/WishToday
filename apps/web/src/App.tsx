@@ -3683,6 +3683,7 @@ export default function App() {
               onToggleTask={handleToggle}
               onMoveTask={handleMoveTask}
               onResizeTask={handleResizeTask}
+              assigneesForTask={(task) => collab.membersForTask(task)}
               onResizeTaskStart={handleResizeTaskStart}
               onAddTask={() => {
                 setSelectedCalendarDate(calendarAnchor);
@@ -3705,6 +3706,7 @@ export default function App() {
                 void applyTask(task.id, (current) => updateTask(current, patch))
               }
               onAdd={() => quickAddRef.current?.focus()}
+              assigneesForTask={(task) => collab.membersForTask(task)}
             />
           ) : viewMode === 'timeline' ? (
             <TimelineView
@@ -3716,6 +3718,7 @@ export default function App() {
               onMove={(task, date) => handleMoveTask(task.id, date)}
               onToggle={handleToggle}
               onAnchorChange={setCalendarAnchor}
+              assigneesForTask={(task) => collab.membersForTask(task)}
             />
           ) : viewMode === 'matrix' ? (
             <MatrixView
@@ -3724,6 +3727,7 @@ export default function App() {
               onSelect={(task) => setSelectedTaskId(task.id)}
               onToggle={handleToggle}
               onUpdate={handleUpdate}
+              assigneesForTask={(task) => collab.membersForTask(task)}
             />
           ) : (
             <TaskList

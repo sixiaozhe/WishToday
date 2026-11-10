@@ -10,6 +10,7 @@ import {
   type Project,
   type Task,
 } from '@dayline/core';
+import { AssigneeAvatars } from './AssigneeAvatars';
 
 interface TimelineViewProps {
   tasks: Task[];
@@ -21,6 +22,10 @@ interface TimelineViewProps {
   onMove: (task: Task, date: string) => void;
   onToggle: (task: Task) => void;
   onAnchorChange: (date: string) => void;
+  assigneesForTask?: (task: Task) => Array<{
+    deviceId: string;
+    name: string;
+  }>;
 }
 
 const DAY_WIDTH = 58;
@@ -35,6 +40,7 @@ export function TimelineView({
   onMove,
   onToggle,
   onAnchorChange,
+  assigneesForTask,
 }: TimelineViewProps) {
   const start = addDaysKey(anchor, -2);
   const dateKeys = useMemo(
@@ -168,7 +174,15 @@ export function TimelineView({
                       onClick={() => onSelect(task)}
                       title={task.title}
                     >
-                      {task.title}
+                      <span className="timeline-bar-title">{task.title}</span>
+                      {assigneesForTask && (
+                        <AssigneeAvatars
+                          people={assigneesForTask(task)}
+                          size="xs"
+                          max={2}
+                          className="timeline-assignees"
+                        />
+                      )}
                     </button>
                   </div>
                 </div>

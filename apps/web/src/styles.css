@@ -7069,3 +7069,101 @@ kbd {
     max-width: 90%;
   }
 }
+
+/* Assignee avatars --------------------------------------------------------- */
+
+.assignee-avatars {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.assignee-avatar {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: -5px;
+  border: 1.5px solid var(--bg-elevated);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.assignee-avatars.is-xs .assignee-avatar {
+  width: 15px;
+  height: 15px;
+  margin-left: -4px;
+  border-width: 1px;
+  font-size: 7.5px;
+}
+
+.assignee-avatar:first-child {
+  margin-left: 0;
+}
+
+.assignee-avatar.is-more {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.task-meta .assignee-avatars {
+  margin-left: 1px;
+}
+
+.calendar-chip-assignees {
+  margin-left: auto;
+}
+
+.calendar-chip-assignees .assignee-avatar,
+.calendar-span .assignee-avatar {
+  border-color: var(--bg-elevated);
+}
+
+.timeline-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.timeline-bar-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-assignees {
+  margin-left: auto;
+}
+
+.timeline-assignees .assignee-avatar {
+  border-color: rgba(255, 255, 255, 0.85);
+}
+
+.kanban-card-meta .assignee-avatars,
+.matrix-card-meta .assignee-avatars {
+  margin-left: auto;
+}
+
+.time-event-assignees {
+  margin-left: auto;
+}
+
+.time-event-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.time-event-title > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

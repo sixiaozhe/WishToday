@@ -31,6 +31,7 @@ import {
 } from '@dayline/core';
 import { expandSeries } from '@dayline/recurrence';
 import { loadFestivalLabels } from '../lunar';
+import { AssigneeAvatars } from './AssigneeAvatars';
 import { Select } from './controls/Select';
 
 export type CalendarMode =
@@ -63,6 +64,10 @@ interface CalendarViewProps {
   onNext: () => void;
   onToday: () => void;
   onModeChange: (mode: CalendarMode) => void;
+  assigneesForTask?: (task: Task) => Array<{
+    deviceId: string;
+    name: string;
+  }>;
 }
 
 type CalendarSegment = 'single' | 'start' | 'middle' | 'end';
@@ -440,12 +445,14 @@ function CalendarChip({
   item,
   project,
   draggable,
+  assignees,
   onSelectTask,
   onToggleTask,
 }: {
   item: CalendarItem;
   project?: Project;
   draggable: boolean;
+  assignees?: Array<{ deviceId: string; name: string }>;
   onSelectTask: (task: Task) => void;
   onToggleTask: (task: Task) => void;
 }) {
@@ -485,6 +492,14 @@ function CalendarChip({
       {item.task.startTime && (
         <span className="calendar-chip-time">{formatTimeLabel(item.task.startTime)}</span>
       )}
+      {assignees && assignees.length > 0 && (
+        <AssigneeAvatars
+          people={assignees}
+          size="xs"
+          max={2}
+          className="calendar-chip-assignees"
+        />
+      )}
     </div>
   );
 }
@@ -494,6 +509,7 @@ function CalendarSpan({
   project,
   startsHere,
   endsHere,
+  assignees,
   onSelectTask,
   onToggleTask,
 }: {
@@ -501,6 +517,7 @@ function CalendarSpan({
   project?: Project;
   startsHere: boolean;
   endsHere: boolean;
+  assignees?: Array<{ deviceId: string; name: string }>;
   onSelectTask: (task: Task) => void;
   onToggleTask: (task: Task) => void;
 }) {
@@ -539,6 +556,14 @@ function CalendarSpan({
       <CalendarCheck task={band.task} onToggleTask={onToggleTask} virtual={band.virtual} />
       <span className="calendar-chip-title">{band.task.title}</span>
       {band.task.seriesId && <Repeat size={10} className="calendar-chip-repeat" />}
+      {assignees && assignees.length > 0 && (
+        <AssigneeAvatars
+          people={assignees}
+          size="xs"
+          max={2}
+          className="calendar-chip-assignees"
+        />
+      )}
     </div>
   );
 }
@@ -552,6 +577,7 @@ function TimeEvent({
   preview,
   canResize,
   startHour,
+  assignees,
   onResizeStart,
 }: {
   event: PositionedEvent;
@@ -559,6 +585,7 @@ function TimeEvent({
   onSelectTask: (task: Task) => void;
   onToggleTask: (task: Task) => void;
   draggable: boolean;
+  assignees?: Array<{ deviceId: string; name: string }>;
   preview: ResizePreview | null;
   canResize: boolean;
   startHour: number;
@@ -642,6 +669,14 @@ function TimeEvent({
         <CalendarCheck task={item.task} onToggleTask={onToggleTask} virtual={item.virtual} />
         <span>{item.task.title}</span>
         {item.task.seriesId && <Repeat size={10} />}
+        {assignees && assignees.length > 0 && (
+          <AssigneeAvatars
+            people={assignees}
+            size="xs"
+            max={2}
+            className="time-event-assignees"
+          />
+        )}
       </div>
       <div className="time-event-range">{range}</div>
       {canResizeStart && (
@@ -701,6 +736,7 @@ export function CalendarView({
   onNext,
   onToday,
   onModeChange,
+  assigneesForTask,
 }: CalendarViewProps) {
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [resizePreview, setResizePreview] = useState<ResizePreview | null>(null);
@@ -948,6 +984,7 @@ export function CalendarView({
         item={item}
         project={projectMap.get(item.task.projectId)}
         draggable={!item.virtual}
+        assignees={assigneesForTask?.(item.task)}
         onSelectTask={onSelectTask}
         onToggleTask={onToggleTask}
       />
@@ -1042,6 +1079,7 @@ export function CalendarView({
                       project={projectMap.get(span.band.task.projectId)}
                       startsHere={span.band.start >= gridStart}
                       endsHere={span.band.end <= gridEnd}
+                      assignees={assigneesForTask?.(span.band.task)}
                       onSelectTask={onSelectTask}
                       onToggleTask={onToggleTask}
                     />
@@ -1108,6 +1146,7 @@ export function CalendarView({
                         !event.item.virtual && event.item.task.startTime !== null
                       }
                       startHour={gridStartHour}
+                      assignees={assigneesForTask?.(event.item.task)}
                       onResizeStart={startResize}
                     />
                   ))}
@@ -1475,6 +1514,7 @@ export function CalendarView({
                         project={projectMap.get(span.band.task.projectId)}
                         startsHere={span.band.start >= start}
                         endsHere={span.band.end <= end}
+                        assignees={assigneesForTask?.(span.band.task)}
                         onSelectTask={onSelectTask}
                         onToggleTask={onToggleTask}
                       />

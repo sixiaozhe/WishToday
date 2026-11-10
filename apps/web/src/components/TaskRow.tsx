@@ -9,7 +9,6 @@ import {
   SkipForward,
   Square,
   Trash2,
-  Users,
 } from 'lucide-react';
 import {
   formatDateLabel,
@@ -18,6 +17,7 @@ import {
   type Tag,
   type Task,
 } from '@dayline/core';
+import { AssigneeAvatars } from './AssigneeAvatars';
 
 interface TaskRowProps {
   task: Task;
@@ -212,13 +212,7 @@ export function TaskRow({
             </span>
           ))}
           {assignees.length > 0 && (
-            <span
-              className="meta-item task-assignees"
-              title={assignees.map((member) => member.name).join('、')}
-            >
-              <Users size={13} />
-              {assignees.map((member) => member.name.slice(0, 1)).join(' ')}
-            </span>
+            <AssigneeAvatars people={assignees} size="sm" />
           )}
           {abandoned && <span className="meta-item">已放弃</span>}
           {skipped && <span className="meta-item">已跳过</span>}

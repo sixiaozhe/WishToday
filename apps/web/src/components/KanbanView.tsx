@@ -9,6 +9,7 @@ import {
   type Tag,
   type Task,
 } from '@dayline/core';
+import { AssigneeAvatars } from './AssigneeAvatars';
 
 interface KanbanViewProps {
   tasks: Task[];
@@ -19,6 +20,10 @@ interface KanbanViewProps {
   onToggle: (task: Task) => void;
   onMove: (task: Task, patch: { projectId?: string; priority?: Priority }) => void;
   onAdd: (projectId: string | null) => void;
+  assigneesForTask?: (task: Task) => Array<{
+    deviceId: string;
+    name: string;
+  }>;
 }
 
 type GroupBy = 'project' | 'priority' | 'status';
@@ -54,6 +59,7 @@ export function KanbanView({
   onToggle,
   onMove,
   onAdd,
+  assigneesForTask,
 }: KanbanViewProps) {
   const [groupBy, setGroupBy] = useState<GroupBy>('project');
   const tagById = new Map(tags.map((tag) => [tag.id, tag]));
@@ -190,6 +196,12 @@ export function KanbanView({
                           ☑ {task.checklist.filter((item) => item.completed).length}/
                           {task.checklist.length}
                         </span>
+                      )}
+                      {assigneesForTask && (
+                        <AssigneeAvatars
+                          people={assigneesForTask(task)}
+                          size="xs"
+                        />
                       )}
                     </div>
                     <MoreHorizontal size={13} className="kanban-more" />
