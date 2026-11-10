@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight, MessageCircle, Sparkles } from 'lucide-react';
 import type { Task } from '@dayline/core';
 
 interface TaskContextMenuProps {
   x: number;
   y: number;
   task: Task;
+  canChat?: boolean;
+  chatCount?: number;
+  onOpenChat?: () => void;
   onOpenTask: () => void;
   onAskAi: () => void;
   onClose: () => void;
@@ -15,6 +18,9 @@ export function TaskContextMenu({
   x,
   y,
   task,
+  canChat = false,
+  chatCount = 0,
+  onOpenChat,
   onOpenTask,
   onAskAi,
   onClose,
@@ -62,6 +68,21 @@ export function TaskContextMenu({
         问 AI 助手
         <span className="task-context-hint">拆解 / 建议</span>
       </button>
+      {canChat && onOpenChat && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            onOpenChat();
+          }}
+        >
+          <MessageCircle size={14} />
+          任务讨论
+          {chatCount > 0 && (
+            <span className="task-context-hint">{chatCount} 条</span>
+          )}
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"

@@ -4,6 +4,7 @@ import {
   Check,
   CheckSquare,
   Flag,
+  MessageCircle,
   Repeat,
   RotateCcw,
   SkipForward,
@@ -33,6 +34,9 @@ interface TaskRowProps {
   onRestore: (task: Task) => void;
   onRestart: (task: Task) => void;
   assignees?: Array<{ deviceId: string; name: string }>;
+  canChat?: boolean;
+  chatCount?: number;
+  onOpenChat?: (task: Task) => void;
 }
 
 const PRIORITY_LABEL: Record<number, string> = {
@@ -56,6 +60,9 @@ export function TaskRow({
   onRestore,
   onRestart,
   assignees = [],
+  canChat = false,
+  chatCount = 0,
+  onOpenChat,
 }: TaskRowProps) {
   const taskTags = tags.filter((tag) => task.tagIds.includes(tag.id));
   const completed = task.status === 'completed';
@@ -220,7 +227,25 @@ export function TaskRow({
         </div>
       </div>
 
-      <div className="task-actions">
+      <div className={`task-actions ${canChat ? 'has-chat' : ''}`}>
+        {canChat && onOpenChat && (
+          <button
+            className="icon-button small task-chat-action"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenChat(task);
+            }}
+            aria-label={chatCount > 0 ? `任务讨论，${chatCount} 条消息` : '任务讨论'}
+            title="任务讨论"
+          >
+            <MessageCircle size={15} />
+            {chatCount > 0 && (
+              <span className="task-chat-count">
+                {chatCount > 99 ? '99+' : chatCount}
+              </span>
+            )}
+          </button>
+        )}
         {deleted || skipped ? (
           <button
             className="icon-button small"

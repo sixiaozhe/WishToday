@@ -108,6 +108,7 @@ import { AssistantDock, type AssistantSeed } from './components/AssistantDock';
 import { TaskContextMenu } from './components/TaskContextMenu';
 import { CollabDialog, InvitePrompt } from './components/CollabDialog';
 import { GroupChatView } from './components/GroupChatView';
+import { TaskChatView } from './components/TaskChatView';
 import { useCollab } from './collab/useCollab';
 import type { AiAction, AiApplyResult } from './ai/actions';
 import { loadAiSettings, saveAiSettings, type AiSettings } from './ai/settings';
@@ -245,6 +246,7 @@ export default function App() {
   const [assistantSeed, setAssistantSeed] = useState<AssistantSeed | null>(null);
   const [collabOpen, setCollabOpen] = useState(false);
   const [groupChatOpen, setGroupChatOpen] = useState(false);
+  const [taskChatId, setTaskChatId] = useState<string | null>(null);
   const [taskMenu, setTaskMenu] = useState<{
     x: number;
     y: number;
@@ -297,6 +299,7 @@ export default function App() {
 
   useEffect(() => {
     setGroupChatOpen(false);
+    setTaskChatId(null);
   }, [view.kind, view.id]);
 
   useEffect(() => {
@@ -688,12 +691,17 @@ export default function App() {
       : null;
   const currentCollabGroup =
     view.kind === 'project' ? collab.groupForProject(view.id) : undefined;
-  const selectedCollabGroup = selectedTask
-    ? collab.groupForProject(selectedTask.projectId)
+  const taskChatTask = taskChatId
+    ? state.tasks.find((task) => task.id === taskChatId) ?? null
+    : null;
+  const taskChatGroup = taskChatTask
+    ? collab.groupForProject(taskChatTask.projectId)
     : undefined;
+  const inTaskChat = Boolean(taskChatTask && taskChatGroup);
   const inGroupChat = Boolean(currentCollabGroup && groupChatOpen);
   const isModuleView = view.kind === 'module';
-  const showTaskChrome = !isModuleView && !noteProject && !inGroupChat;
+  const showTaskChrome =
+    !isModuleView && !noteProject && !inGroupChat && !inTaskChat;
   const subtitle =
     view.kind === 'module'
       ? {
@@ -3344,6 +3352,9 @@ export default function App() {
         (task) => task.id === taskMenu.taskId && !task.deletedAt,
       ) ?? null
     : null;
+  const contextCollabGroup = contextTask
+    ? collab.groupForProject(contextTask.projectId)
+    : undefined;
   const collabOnlineCount = collab.peers.filter((peer) => peer.online).length;
   const pendingCollabInvite = collab.invites[0];
 
@@ -3546,7 +3557,7 @@ export default function App() {
             />
           )}
 
-          {currentCollabGroup && (
+          {currentCollabGroup && !inTaskChat && (
             <div className="collab-banner">
               <span className="collab-banner-icon">
                 <Users size={15} />
@@ -3587,7 +3598,18 @@ export default function App() {
             </div>
           )}
 
-          {inGroupChat && currentCollabGroup ? (
+          {inTaskChat && taskChatTask && taskChatGroup ? (
+            <TaskChatView
+              task={taskChatTask}
+              group={taskChatGroup}
+              messages={collab.chatForGroup(taskChatGroup.id, taskChatTask.id)}
+              deviceId={collab.deviceId}
+              onSend={(content) =>
+                collab.sendChat(taskChatGroup.id, content, taskChatTask.id)
+              }
+              onBack={() => setTaskChatId(null)}
+            />
+          ) : inGroupChat && currentCollabGroup ? (
             <GroupChatView
               group={currentCollabGroup}
               messages={collab.chatForGroup(currentCollabGroup.id)}
@@ -3749,6 +3771,19 @@ export default function App() {
               onRestore={handleRestore}
               onRestart={handleRestart}
               assigneesForTask={(task) => collab.membersForTask(task)}
+              canChatForTask={(task) =>
+                Boolean(collab.groupForProject(task.projectId))
+              }
+              chatCountForTask={(task) => {
+                const group = collab.groupForProject(task.projectId);
+                return group
+                  ? collab.chatForGroup(group.id, task.id).length
+                  : 0;
+              }}
+              onOpenChat={(task) => {
+                setTaskChatId(task.id);
+                setSelectedTaskId(null);
+              }}
             />
           )}
         </div>
@@ -3781,24 +3816,6 @@ export default function App() {
               void collab.assignTask(group.id, selectedTask.id, deviceIds);
             }
           }}
-          collabChat={
-            selectedCollabGroup
-              ? collab.chatForGroup(selectedCollabGroup.id, selectedTask.id)
-              : undefined
-          }
-          collabDeviceId={
-            selectedCollabGroup ? collab.deviceId : undefined
-          }
-          onSendCollabChat={
-            selectedCollabGroup
-              ? (content) =>
-                  collab.sendChat(
-                    selectedCollabGroup.id,
-                    content,
-                    selectedTask.id,
-                  )
-              : undefined
-          }
           onClose={() => setSelectedTaskId(null)}
           onUpdate={handleUpdate}
           onToggle={handleToggle}
@@ -4010,6 +4027,18 @@ export default function App() {
           x={taskMenu.x}
           y={taskMenu.y}
           task={contextTask}
+          canChat={Boolean(contextCollabGroup)}
+          chatCount={
+            contextCollabGroup
+              ? collab.chatForGroup(contextCollabGroup.id, contextTask.id)
+                  .length
+              : 0
+          }
+          onOpenChat={() => {
+            setTaskChatId(contextTask.id);
+            setSelectedTaskId(null);
+            setTaskMenu(null);
+          }}
           onAskAi={() => openAssistantForTask(contextTask)}
           onOpenTask={() => {
             setSelectedTaskId(contextTask.id);

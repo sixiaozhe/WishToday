@@ -7223,3 +7223,28 @@ kbd {
 .task-chat-composer .button {
   flex-shrink: 0;
 }
+
+.task-actions.has-chat {
+  opacity: 1;
+}
+
+.task-chat-action {
+  position: relative;
+}
+
+.task-chat-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1;
+}

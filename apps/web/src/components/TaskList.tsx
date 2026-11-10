@@ -29,6 +29,9 @@ interface TaskListProps {
     deviceId: string;
     name: string;
   }>;
+  canChatForTask?: (task: Task) => boolean;
+  chatCountForTask?: (task: Task) => number;
+  onOpenChat?: (task: Task) => void;
 }
 
 interface TaskGroup {
@@ -98,6 +101,9 @@ export function TaskList({
   onRestore,
   onRestart,
   assigneesForTask,
+  canChatForTask,
+  chatCountForTask,
+  onOpenChat,
 }: TaskListProps) {
   if (tasks.length === 0) {
     const copy = emptyCopy(view, search);
@@ -142,6 +148,9 @@ export function TaskList({
                 onRestore={onRestore}
                 onRestart={onRestart}
                 assignees={assigneesForTask?.(task)}
+                canChat={canChatForTask?.(task)}
+                chatCount={chatCountForTask?.(task)}
+                onOpenChat={onOpenChat}
               />
             ))}
           </div>
