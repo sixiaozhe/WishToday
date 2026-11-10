@@ -4,9 +4,12 @@ import type { SqliteRepository } from '@dayline/db';
 import {
   getDeviceId,
   loadCollab,
+  loadKnownPeers,
   newGroupId,
   randomToken,
+  rememberPeer,
   saveCollab,
+  saveKnownPeers,
 } from './store';
 import type {
   AssignMessage,
@@ -172,7 +175,9 @@ export function useCollab({
         displayNameRef.current,
       );
       normalized.push(result.group);
-      if (result.needsRejoin) pending.push(result.group.id);
+      if (result.group.ownerId !== nextDeviceId) {
+        pending.push(result.group.id);
+      }
     }
     groupsRef.current = normalized;
     saveCollab(profileId, { groups: normalized });
@@ -205,6 +210,12 @@ export function useCollab({
         unlistenPeers = await listen<CollabPeer[]>('collab-peers', (event) => {
           peersRef.current = event.payload;
           setPeers(event.payload);
+          const addresses = event.payload
+            .filter((peer) => peer.online && peer.address)
+            .map((peer) => peer.address);
+          if (addresses.length > 0) {
+            saveKnownPeers([...addresses, ...loadKnownPeers()]);
+          }
         });
         unlistenMessages = await listen<IncomingEnvelope>(
           'collab-message',
@@ -214,6 +225,16 @@ export function useCollab({
         if (!disposed) {
           peersRef.current = initial;
           setPeers(initial);
+          const ownAddresses = new Set(
+            [info.address, info.localAddress].filter(Boolean),
+          );
+          for (const address of loadKnownPeers()) {
+            if (!ownAddresses.has(address)) {
+              void invokeCollab('collab_connect', { address }).catch(
+                () => undefined,
+              );
+            }
+          }
         }
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : String(reason));
@@ -229,8 +250,12 @@ export function useCollab({
 
   useEffect(() => {
     if (!running || !deviceId || rejoinRef.current.size === 0) return;
+    const targets = peers
+      .filter((peer) => peer.online && peer.deviceId !== deviceId)
+      .map((peer) => peer.deviceId);
+    if (targets.length === 0) return;
     for (const groupId of [...rejoinRef.current]) {
-      let group = groupsRef.current.find((item) => item.id === groupId);
+      const group = groupsRef.current.find((item) => item.id === groupId);
       if (!group) {
         rejoinRef.current.delete(groupId);
         continue;
@@ -239,30 +264,17 @@ export function useCollab({
         rejoinRef.current.delete(groupId);
         continue;
       }
-      const ownerName = group.ownerName;
-      let ownerId = group.ownerId;
-      let ownerOnline = peers.some(
-        (peer) => peer.deviceId === ownerId && peer.online,
-      );
-      if (!ownerOnline) {
-        const ownerPeer = peers.find(
-          (peer) => peer.name === ownerName && peer.online,
-        );
-        if (ownerPeer) {
-          ownerId = ownerPeer.deviceId;
-          group = { ...group, ownerId, ownerName: ownerPeer.name };
-          updateGroupNow(group);
-          ownerOnline = true;
-        }
+      // The owner may have a stale device id after an upgrade; broadcasting
+      // lets whichever member still holds the group token answer.
+      for (const target of targets) {
+        void sendTo(target, {
+          type: 'invite_accept',
+          inviteId: `rejoin-${randomToken()}`,
+          groupId: group.id,
+          token: group.token,
+          member: { deviceId, name: displayNameRef.current },
+        });
       }
-      if (!ownerOnline) continue;
-      void sendTo(ownerId, {
-        type: 'invite_accept',
-        inviteId: `rejoin-${randomToken()}`,
-        groupId: group.id,
-        token: group.token,
-        member: { deviceId, name: displayNameRef.current },
-      });
       rejoinRef.current.delete(groupId);
     }
   }, [running, peers, groups, deviceId]);
@@ -288,6 +300,7 @@ export function useCollab({
   }
 
   async function connectPeer(address: string) {
+    rememberPeer(address);
     try {
       await invokeCollab('collab_connect', { address });
     } catch (reason) {
@@ -447,7 +460,13 @@ export function useCollab({
   ) {
     const group = groupsRef.current.find((item) => item.id === message.groupId);
     if (!group || group.token !== message.token) return;
-    if (envelope.from !== group.ownerId) return;
+    let resolvedOwnerId = group.ownerId;
+    if (envelope.from !== group.ownerId) {
+      // The owner's device id can change after an upgrade, but the display
+      // name and group token remain stable.
+      if (envelope.name !== group.ownerName) return;
+      resolvedOwnerId = envelope.from;
+    }
     const local = stateRef.current;
     if (!local) return;
 
@@ -501,6 +520,7 @@ export function useCollab({
 
     const updatedGroup: CollabGroup = {
       ...group,
+      ownerId: resolvedOwnerId,
       name: message.group.name,
       ownerName: message.group.ownerName,
       members: message.group.members,
@@ -608,7 +628,11 @@ export function useCollab({
       const group = groupsRef.current.find(
         (item) => item.id === message.groupId,
       );
-      if (!group || group.ownerId !== deviceId || group.token !== message.token) {
+      if (!group || group.token !== message.token) return;
+      if (
+        group.ownerId !== deviceId &&
+        group.ownerName !== displayNameRef.current
+      ) {
         return;
       }
       if (
@@ -645,6 +669,7 @@ export function useCollab({
       }
       const updated: CollabGroup = {
         ...group,
+        ownerId: deviceId,
         members,
         assignments,
       };
@@ -682,7 +707,12 @@ export function useCollab({
         (item) => item.id === message.groupId,
       );
       if (!group || group.token !== message.token) return;
-      updateGroupNow({ ...group, members: message.members });
+      let ownerId = group.ownerId;
+      if (envelope.from !== ownerId) {
+        if (envelope.name !== group.ownerName) return;
+        ownerId = envelope.from;
+      }
+      updateGroupNow({ ...group, ownerId, members: message.members });
       return;
     }
 

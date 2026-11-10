@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Write},
-    net::{Shutdown, SocketAddr, TcpListener, TcpStream, UdpSocket},
+    net::{Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream, UdpSocket},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, Mutex,
@@ -358,6 +358,9 @@ fn start_discovery(
     socket
         .set_broadcast(true)
         .map_err(|error| format!("无法启用广播：{error}"))?;
+    let multicast_group = Ipv4Addr::new(239, 255, 42, 99);
+    let _ = socket.join_multicast_v4(&multicast_group, &Ipv4Addr::UNSPECIFIED);
+    let _ = socket.set_multicast_loop_v4(true);
     let udp: UdpSocket = socket.into();
     udp.set_read_timeout(Some(Duration::from_secs(2)))
         .map_err(|error| error.to_string())?;
@@ -383,6 +386,7 @@ fn start_discovery(
             if let Ok(data) = serde_json::to_vec(&beacon) {
                 let _ = beacon_udp.send_to(&data, ("255.255.255.255", DISCOVERY_PORT));
                 let _ = beacon_udp.send_to(&data, ("127.0.0.1", DISCOVERY_PORT));
+                let _ = beacon_udp.send_to(&data, (multicast_group, DISCOVERY_PORT));
             }
             thread::sleep(Duration::from_secs(2));
         });

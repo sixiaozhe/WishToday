@@ -2,6 +2,7 @@ import { generateId } from '@dayline/core';
 import type { CollabGroup, CollabInvite } from './types';
 
 const DEVICE_KEY = 'dayline.collab.device.v1';
+const KNOWN_PEERS_KEY = 'dayline.collab.known-peers.v1';
 
 function deviceKey(profileId: string): string {
   return `${DEVICE_KEY}.${profileId}`;
@@ -83,4 +84,41 @@ export function inviteFromMessage(
   invite: Omit<CollabInvite, 'receivedAt'>,
 ): CollabInvite {
   return { ...invite, receivedAt: Date.now() };
+}
+
+/**
+ * Manual connections are not re-discovered reliably on every network (and
+ * two clients on the same machine may not receive each other's UDP
+ * broadcasts). Remember peer addresses and reconnect on startup.
+ */
+export function loadKnownPeers(): string[] {
+  try {
+    const raw = window.localStorage.getItem(KNOWN_PEERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (address): address is string =>
+        typeof address === 'string' && address.includes(':'),
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function saveKnownPeers(addresses: string[]): void {
+  try {
+    const unique = [...new Set(addresses.filter((item) => item.includes(':')))];
+    window.localStorage.setItem(
+      KNOWN_PEERS_KEY,
+      JSON.stringify(unique.slice(0, 20)),
+    );
+  } catch {
+    // Best-effort; manual connection can still be used this session.
+  }
+}
+
+export function rememberPeer(address: string): void {
+  if (!address.includes(':')) return;
+  saveKnownPeers([address, ...loadKnownPeers()]);
 }
