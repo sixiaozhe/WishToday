@@ -44,6 +44,22 @@ export interface CollabProjectPayload {
   color: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  groupId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  createdAt: number;
+}
+
+export interface ChatMessageEnvelope {
+  type: 'chat';
+  groupId: string;
+  token: string;
+  message: ChatMessage;
+}
+
 export interface CollabSnapshot {
   type: 'snapshot';
   groupId: string;
@@ -58,6 +74,7 @@ export interface CollabSnapshot {
   project: CollabProjectPayload;
   tasks: Task[];
   assignments: Record<string, string[]>;
+  chat?: ChatMessage[];
 }
 
 export interface InviteMessage {
@@ -115,6 +132,7 @@ export interface SyncUploadMessage {
   token: string;
   tasks: Task[];
   assignments: Record<string, string[]>;
+  chat?: ChatMessage[];
 }
 
 export interface PingMessage {
@@ -130,6 +148,7 @@ export type CollabMessage =
   | TaskMessage
   | AssignMessage
   | SyncUploadMessage
+  | ChatMessageEnvelope
   | PingMessage;
 
 export interface IncomingEnvelope {

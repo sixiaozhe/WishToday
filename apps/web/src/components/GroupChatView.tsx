@@ -1,0 +1,123 @@
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, MessageCircle, Send } from 'lucide-react';
+import type { ChatMessage, CollabGroup } from '../collab/types';
+
+interface GroupChatViewProps {
+  group: CollabGroup;
+  messages: ChatMessage[];
+  deviceId: string;
+  onSend: (content: string) => void;
+  onBack: () => void;
+}
+
+function messageTime(createdAt: number): string {
+  return new Date(createdAt).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export function GroupChatView({
+  group,
+  messages,
+  deviceId,
+  onSend,
+  onBack,
+}: GroupChatViewProps) {
+  const [input, setInput] = useState('');
+  const logRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = logRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [messages.length]);
+
+  function submit() {
+    const value = input.trim();
+    if (!value) return;
+    onSend(value);
+    setInput('');
+  }
+
+  return (
+    <section className="group-chat">
+      <div className="group-chat-head">
+        <div className="group-chat-title">
+          <span className="group-chat-icon">
+            <MessageCircle size={16} />
+          </span>
+          <div>
+            <strong>{group.name}</strong>
+            <span>群聊 · {group.members.length} 人</span>
+          </div>
+        </div>
+        <button className="button ghost small" onClick={onBack}>
+          <ArrowLeft size={14} />
+          返回任务
+        </button>
+      </div>
+
+      <div className="group-chat-log" ref={logRef}>
+        {messages.length === 0 ? (
+          <div className="group-chat-empty">
+            <MessageCircle size={26} />
+            <strong>还没有消息</strong>
+            <span>在群组里发第一条消息吧。</span>
+          </div>
+        ) : (
+          messages.map((message) => {
+            const own = message.senderId === deviceId;
+            return (
+              <div
+                key={message.id}
+                className={`chat-message ${own ? 'is-own' : ''}`}
+              >
+                {!own && (
+                  <span className="chat-avatar">
+                    {message.senderName.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <div className="chat-body">
+                  <div className="chat-meta">
+                    <strong>{own ? '我' : message.senderName}</strong>
+                    <span>{messageTime(message.createdAt)}</span>
+                  </div>
+                  <div className="chat-bubble">{message.content}</div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <form
+        className="group-chat-composer"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <textarea
+          rows={2}
+          value={input}
+          placeholder="发消息给群组，Enter 发送，Shift+Enter 换行"
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              submit();
+            }
+          }}
+        />
+        <button
+          type="submit"
+          className="button primary"
+          disabled={!input.trim()}
+        >
+          <Send size={15} />
+          发送
+        </button>
+      </form>
+    </section>
+  );
+}

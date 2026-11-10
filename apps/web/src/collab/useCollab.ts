@@ -3,16 +3,20 @@ import type { AppState, Project, Task } from '@dayline/core';
 import type { SqliteRepository } from '@dayline/db';
 import {
   getDeviceId,
+  loadChat,
   loadCollab,
   loadKnownPeers,
   newGroupId,
   randomToken,
   rememberPeer,
+  saveChat,
   saveCollab,
   saveKnownPeers,
 } from './store';
 import type {
   AssignMessage,
+  ChatMessage,
+  ChatMessageEnvelope,
   CollabGroup,
   CollabInvite,
   CollabMember,
@@ -113,6 +117,9 @@ export function useCollab({
   const [groups, setGroups] = useState<CollabGroup[]>(
     () => loadCollab(userId).groups,
   );
+  const [chat, setChat] = useState<Record<string, ChatMessage[]>>(() =>
+    loadChat(userId),
+  );
   const [invites, setInvites] = useState<CollabInvite[]>([]);
   const [running, setRunning] = useState(false);
   const [port, setPort] = useState<number | null>(null);
@@ -121,6 +128,7 @@ export function useCollab({
   const [error, setError] = useState<string | null>(null);
 
   const groupsRef = useRef(groups);
+  const chatRef = useRef(chat);
   const peersRef = useRef(peers);
   const invitesRef = useRef(invites);
   const displayNameRef = useRef(displayName);
@@ -152,6 +160,27 @@ export function useCollab({
   function setInvitesNow(next: CollabInvite[]) {
     invitesRef.current = next;
     setInvites(next);
+  }
+
+  function mergeChat(
+    groupId: string,
+    incoming: ChatMessage[],
+  ): ChatMessage[] {
+    const existing = chatRef.current[groupId] ?? [];
+    const map = new Map(existing.map((message) => [message.id, message]));
+    for (const message of incoming) {
+      if (message && typeof message.id === 'string') {
+        map.set(message.id, message);
+      }
+    }
+    const merged = [...map.values()]
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .slice(-300);
+    const next = { ...chatRef.current, [groupId]: merged };
+    chatRef.current = next;
+    setChat(next);
+    saveChat(userId, next);
+    return merged;
   }
 
   function dismissInvite(inviteId: string) {
@@ -190,6 +219,9 @@ export function useCollab({
     setInvitesNow([]);
     baselineRef.current.clear();
     rejoinRef.current = new Set(pending);
+    const loadedChat = loadChat(userId);
+    chatRef.current = loadedChat;
+    setChat(loadedChat);
     setDeviceId(nextDeviceId);
   }, [userId]);
 
@@ -395,6 +427,7 @@ export function useCollab({
           )
         : [],
       assignments: group.assignments,
+      chat: chatRef.current[group.id] ?? [],
     };
   }
 
@@ -410,6 +443,7 @@ export function useCollab({
           )
         : [],
       assignments: group.assignments,
+      chat: chatRef.current[group.id] ?? [],
     };
   }
 
@@ -525,6 +559,36 @@ export function useCollab({
     });
   }
 
+  function sendChat(groupId: string, content: string): void {
+    const text = content.trim();
+    if (!text || !deviceId) return;
+    const group = groupsRef.current.find((item) => item.id === groupId);
+    if (!group) return;
+    const message: ChatMessage = {
+      id: `chat-${randomToken()}`,
+      groupId,
+      senderId: deviceId,
+      senderName: displayNameRef.current,
+      content: text.slice(0, 4000),
+      createdAt: Date.now(),
+    };
+    mergeChat(groupId, [message]);
+    const envelope: ChatMessageEnvelope = {
+      type: 'chat',
+      groupId,
+      token: group.token,
+      message,
+    };
+    if (group.ownerId === deviceId) {
+      const targets = ownerTargets(group);
+      if (targets.length > 0) {
+        void sendMany(targets, envelope);
+      }
+    } else {
+      void sendTo(group.ownerId, envelope);
+    }
+  }
+
   async function applySnapshot(
     message: CollabSnapshot,
     envelope: IncomingEnvelope,
@@ -540,6 +604,9 @@ export function useCollab({
     }
     const local = stateRef.current;
     if (!local) return;
+    if (message.chat) {
+      mergeChat(group.id, message.chat);
+    }
 
     let next = local;
     let stateChanged = false;
@@ -618,6 +685,9 @@ export function useCollab({
     if (!isOwner) return;
     const local = stateRef.current;
     if (!local) return;
+    if (message.chat) {
+      mergeChat(group.id, message.chat);
+    }
 
     let members = [...group.members];
     const byDevice = members.findIndex(
@@ -878,6 +948,23 @@ export function useCollab({
       return;
     }
 
+    if (message.type === 'chat') {
+      const group = groupsRef.current.find(
+        (item) => item.id === message.groupId,
+      );
+      if (!group || group.token !== message.token) return;
+      mergeChat(group.id, [message.message]);
+      if (group.ownerId === deviceId && envelope.from !== deviceId) {
+        const targets = ownerTargets(group).filter(
+          (target) => target !== envelope.from,
+        );
+        if (targets.length > 0) {
+          void sendMany(targets, message);
+        }
+      }
+      return;
+    }
+
     if (message.type === 'snapshot') {
       void applySnapshot(message, envelope);
       return;
@@ -1012,6 +1099,8 @@ export function useCollab({
     groupForProject,
     membersForTask,
     assigneesForTask,
+    chatForGroup: (groupId: string) => chat[groupId] ?? [],
+    sendChat,
     dismissInvite,
   };
 }

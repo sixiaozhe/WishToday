@@ -1,8 +1,9 @@
 import { generateId } from '@dayline/core';
-import type { CollabGroup, CollabInvite } from './types';
+import type { ChatMessage, CollabGroup, CollabInvite } from './types';
 
 const DEVICE_KEY = 'dayline.collab.device.v1';
 const KNOWN_PEERS_KEY = 'dayline.collab.known-peers.v1';
+const CHAT_KEY = 'dayline.collab.chat.v1';
 
 function deviceKey(profileId: string): string {
   return `${DEVICE_KEY}.${profileId}`;
@@ -122,3 +123,42 @@ export function rememberPeer(address: string): void {
   if (!address.includes(':')) return;
   saveKnownPeers([address, ...loadKnownPeers()]);
 }
+
+export function loadChat(userId: string): Record<string, ChatMessage[]> {
+  if (!userId) return {};
+  try {
+    const raw = window.localStorage.getItem(`${CHAT_KEY}.${userId}`);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const result: Record<string, ChatMessage[]> = {};
+    for (const [groupId, messages] of Object.entries(
+      parsed as Record<string, unknown>,
+    )) {
+      if (!Array.isArray(messages)) continue;
+      result[groupId] = messages.filter(
+        (message): message is ChatMessage =>
+          Boolean(message) &&
+          typeof (message as ChatMessage).id === 'string' &&
+          typeof (message as ChatMessage).content === 'string' &&
+          typeof (message as ChatMessage).createdAt === 'number',
+      );
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+export function saveChat(
+  userId: string,
+  chat: Record<string, ChatMessage[]>,
+): void {
+  if (!userId) return;
+  try {
+    window.localStorage.setItem(`${CHAT_KEY}.${userId}`, JSON.stringify(chat));
+  } catch {
+    // Chat history is best-effort and can be re-synced from the group owner.
+  }
+}
+

@@ -12,6 +12,7 @@ import {
   Grid2X2,
   List,
   Menu,
+  MessageCircle,
   Moon,
   Search,
   Sun,
@@ -106,6 +107,7 @@ import { SummaryView } from './components/SummaryView';
 import { AssistantDock, type AssistantSeed } from './components/AssistantDock';
 import { TaskContextMenu } from './components/TaskContextMenu';
 import { CollabDialog, InvitePrompt } from './components/CollabDialog';
+import { GroupChatView } from './components/GroupChatView';
 import { useCollab } from './collab/useCollab';
 import type { AiAction, AiApplyResult } from './ai/actions';
 import { loadAiSettings, saveAiSettings, type AiSettings } from './ai/settings';
@@ -242,6 +244,7 @@ export default function App() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantSeed, setAssistantSeed] = useState<AssistantSeed | null>(null);
   const [collabOpen, setCollabOpen] = useState(false);
+  const [groupChatOpen, setGroupChatOpen] = useState(false);
   const [taskMenu, setTaskMenu] = useState<{
     x: number;
     y: number;
@@ -291,6 +294,10 @@ export default function App() {
     commit,
     notify: (title, body) => setToast({ title, body }),
   });
+
+  useEffect(() => {
+    setGroupChatOpen(false);
+  }, [view.kind, view.id]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -679,8 +686,11 @@ export default function App() {
     view.kind === 'project'
       ? state.projects.find((project) => project.id === view.id && project.kind === 'note') ?? null
       : null;
+  const currentCollabGroup =
+    view.kind === 'project' ? collab.groupForProject(view.id) : undefined;
+  const inGroupChat = Boolean(currentCollabGroup && groupChatOpen);
   const isModuleView = view.kind === 'module';
-  const showTaskChrome = !isModuleView && !noteProject;
+  const showTaskChrome = !isModuleView && !noteProject && !inGroupChat;
   const subtitle =
     view.kind === 'module'
       ? {
@@ -3332,8 +3342,6 @@ export default function App() {
       ) ?? null
     : null;
   const collabOnlineCount = collab.peers.filter((peer) => peer.online).length;
-  const currentCollabGroup =
-    view.kind === 'project' ? collab.groupForProject(view.id) : undefined;
   const pendingCollabInvite = collab.invites[0];
 
   return (
@@ -3557,17 +3565,36 @@ export default function App() {
                   </span>
                 ))}
               </div>
-              <button
-                className="button ghost small"
-                onClick={() => setCollabOpen(true)}
-              >
-                <Users size={14} />
-                邀请成员
-              </button>
+              <div className="collab-banner-actions">
+                <button
+                  className="button ghost small"
+                  onClick={() => setGroupChatOpen((value) => !value)}
+                >
+                  <MessageCircle size={14} />
+                  {groupChatOpen ? '返回任务' : '群聊'}
+                </button>
+                <button
+                  className="button ghost small"
+                  onClick={() => setCollabOpen(true)}
+                >
+                  <Users size={14} />
+                  邀请成员
+                </button>
+              </div>
             </div>
           )}
 
-          {isModuleView ? (
+          {inGroupChat && currentCollabGroup ? (
+            <GroupChatView
+              group={currentCollabGroup}
+              messages={collab.chatForGroup(currentCollabGroup.id)}
+              deviceId={collab.deviceId}
+              onSend={(content) =>
+                collab.sendChat(currentCollabGroup.id, content)
+              }
+              onBack={() => setGroupChatOpen(false)}
+            />
+          ) : isModuleView ? (
             view.id === 'summary' ? (
               <SummaryView
                 tasks={state.tasks}
