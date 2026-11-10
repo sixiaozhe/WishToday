@@ -6816,3 +6816,43 @@ kbd {
     max-width: none;
   }
 }
+
+.collab-address {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.collab-address span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.collab-address code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.collab-address em {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-style: normal;
+}
+
+.member-chip.is-online {
+  box-shadow: 0 0 0 1px var(--success);
+}
+
+.member-chip.is-offline {
+  opacity: 0.45;
+}

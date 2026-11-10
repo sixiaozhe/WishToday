@@ -39,6 +39,8 @@ interface CollabInfo {
   deviceId: string;
   name: string;
   port: number;
+  address: string;
+  localAddress: string;
 }
 
 function parentFirst(tasks: Task[]): Task[] {
@@ -74,7 +76,7 @@ export function useCollab({
   notify,
 }: UseCollabOptions) {
   const [supported] = useState(() => isTauri());
-  const [deviceId] = useState(() => getDeviceId());
+  const [deviceId, setDeviceId] = useState(() => getDeviceId(profileId));
   const [peers, setPeers] = useState<CollabPeer[]>([]);
   const [groups, setGroups] = useState<CollabGroup[]>(
     () => loadCollab(profileId).groups,
@@ -82,6 +84,8 @@ export function useCollab({
   const [invites, setInvites] = useState<CollabInvite[]>([]);
   const [running, setRunning] = useState(false);
   const [port, setPort] = useState<number | null>(null);
+  const [address, setAddress] = useState<string | null>(null);
+  const [localAddress, setLocalAddress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const groupsRef = useRef(groups);
@@ -128,15 +132,17 @@ export function useCollab({
   }, [displayName]);
 
   useEffect(() => {
+    if (!profileId) return;
     const loaded = loadCollab(profileId).groups;
     groupsRef.current = loaded;
     setGroups(loaded);
     setInvitesNow([]);
     baselineRef.current.clear();
+    setDeviceId(getDeviceId(profileId));
   }, [profileId]);
 
   useEffect(() => {
-    if (!supported) return;
+    if (!supported || !deviceId) return;
     let disposed = false;
     let unlistenPeers: (() => void) | undefined;
     let unlistenMessages: (() => void) | undefined;
@@ -152,6 +158,8 @@ export function useCollab({
         setRunning(true);
         runningRef.current = true;
         setPort(info.port);
+        setAddress(info.address);
+        setLocalAddress(info.localAddress);
         unlistenPeers = await listen<CollabPeer[]>('collab-peers', (event) => {
           peersRef.current = event.payload;
           setPeers(event.payload);
@@ -686,6 +694,8 @@ export function useCollab({
     supported,
     running,
     port,
+    address,
+    localAddress,
     error,
     deviceId,
     peers,

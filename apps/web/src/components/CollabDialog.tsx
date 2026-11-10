@@ -19,6 +19,8 @@ interface CollabDialogProps {
   supported: boolean;
   running: boolean;
   port: number | null;
+  lanAddress: string | null;
+  localAddress: string | null;
   error: string | null;
   peers: CollabPeer[];
   groups: CollabGroup[];
@@ -45,6 +47,8 @@ export function CollabDialog({
   supported,
   running,
   port,
+  lanAddress,
+  localAddress,
   error,
   peers,
   groups,
@@ -96,6 +100,18 @@ export function CollabDialog({
               : '协作服务未启动'}
           </span>
           {error && <em>{error}</em>}
+        </div>
+      )}
+
+      {supported && running && (
+        <div className="collab-address">
+          <span>
+            本机地址 <code>{localAddress ?? `127.0.0.1:${port ?? '…'}`}</code>
+            <em>同一台电脑的两个客户端用这个连接</em>
+          </span>
+          <span>
+            局域网地址 <code>{lanAddress ?? '—'}</code>
+          </span>
         </div>
       )}
 
@@ -190,49 +206,70 @@ export function CollabDialog({
           <p className="field-hint">还没有群组。创建一个群组后就可以邀请同事加入。</p>
         ) : (
           <div className="collab-group-list">
-            {groups.map((group) => (
-              <div className="collab-group" key={group.id}>
-                <div className="collab-group-head">
-                  <div>
-                    <strong>{group.name}</strong>
-                    <span>
-                      {group.ownerId === deviceId
-                        ? '我是群主'
-                        : `群主：${group.ownerName}`}
-                      {' · '}
-                      {group.members.length} 人
-                    </span>
+            {groups.map((group) => {
+              const onlineMembers = group.members.filter(
+                (member) =>
+                  member.deviceId === deviceId ||
+                  peers.some(
+                    (peer) => peer.deviceId === member.deviceId && peer.online,
+                  ),
+              ).length;
+              return (
+                <div className="collab-group" key={group.id}>
+                  <div className="collab-group-head">
+                    <div>
+                      <strong>{group.name}</strong>
+                      <span>
+                        {group.ownerId === deviceId
+                          ? '我是群主'
+                          : `群主：${group.ownerName}`}
+                        {' · '}
+                        {group.members.length} 人 · {onlineMembers} 在线
+                      </span>
+                    </div>
+                    <button
+                      className="button ghost small"
+                      onClick={() => {
+                        onOpenGroup(group.id);
+                        onClose();
+                      }}
+                    >
+                      打开清单
+                    </button>
                   </div>
-                  <button
-                    className="button ghost small"
-                    onClick={() => {
-                      onOpenGroup(group.id);
-                      onClose();
-                    }}
-                  >
-                    打开清单
-                  </button>
-                </div>
-                <div className="collab-group-members" title={memberNames(group)}>
-                  {group.members.slice(0, 8).map((member) => (
-                    <span key={member.deviceId} className="member-chip">
-                      {initials(member.name)}
-                    </span>
-                  ))}
-                  {group.members.length > 8 && (
-                    <span className="member-chip">+{group.members.length - 8}</span>
+                  <div className="collab-group-members" title={memberNames(group)}>
+                    {group.members.slice(0, 8).map((member) => {
+                      const online =
+                        member.deviceId === deviceId ||
+                        peers.some(
+                          (peer) =>
+                            peer.deviceId === member.deviceId && peer.online,
+                        );
+                      return (
+                        <span
+                          key={member.deviceId}
+                          className={`member-chip ${online ? 'is-online' : 'is-offline'}`}
+                          title={`${member.name} · ${online ? '在线' : '离线'}`}
+                        >
+                          {initials(member.name)}
+                        </span>
+                      );
+                    })}
+                    {group.members.length > 8 && (
+                      <span className="member-chip">+{group.members.length - 8}</span>
+                    )}
+                    <em>{memberNames(group)}</em>
+                  </div>
+                  {group.ownerId !== deviceId && (
+                    <p className="field-hint">
+                      {memberOf(group)
+                        ? '群内任务会实时同步；只有群主可以邀请新成员。'
+                        : '你还没有加入这个群组。'}
+                    </p>
                   )}
-                  <em>{memberNames(group)}</em>
                 </div>
-                {group.ownerId !== deviceId && (
-                  <p className="field-hint">
-                    {memberOf(group)
-                      ? '群内任务会实时同步；只有群主可以邀请新成员。'
-                      : '你还没有加入这个群组。'}
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

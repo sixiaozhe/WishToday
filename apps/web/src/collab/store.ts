@@ -3,6 +3,10 @@ import type { CollabGroup, CollabInvite } from './types';
 
 const DEVICE_KEY = 'dayline.collab.device.v1';
 
+function deviceKey(profileId: string): string {
+  return `${DEVICE_KEY}.${profileId}`;
+}
+
 export interface CollabStore {
   groups: CollabGroup[];
 }
@@ -11,12 +15,19 @@ function storageKey(profileId: string): string {
   return `dayline.collab.v1.${profileId}`;
 }
 
-export function getDeviceId(): string {
+/**
+ * Each local user profile gets its own device identity. Two windows signed in
+ * as different local users can therefore see each other even when they share
+ * the same WebView storage.
+ */
+export function getDeviceId(profileId: string): string {
+  if (!profileId) return '';
   try {
-    const existing = window.localStorage.getItem(DEVICE_KEY);
+    const key = deviceKey(profileId);
+    const existing = window.localStorage.getItem(key);
     if (existing) return existing;
     const created = generateId();
-    window.localStorage.setItem(DEVICE_KEY, created);
+    window.localStorage.setItem(key, created);
     return created;
   } catch {
     return generateId();

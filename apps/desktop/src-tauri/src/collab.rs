@@ -37,6 +37,8 @@ pub struct CollabInfo {
     pub device_id: String,
     pub name: String,
     pub port: u16,
+    pub address: String,
+    pub local_address: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -84,6 +86,12 @@ fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
         .unwrap_or(0)
+}
+
+fn local_ip() -> Option<String> {
+    let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
+    socket.connect("8.8.8.8:80").ok()?;
+    Some(socket.local_addr().ok()?.ip().to_string())
 }
 
 fn connection_id(device_id: &str) -> String {
@@ -184,7 +192,14 @@ fn read_loop(
         let Ok(value) = serde_json::from_str::<Value>(trimmed) else {
             continue;
         };
-        if value.get("type").and_then(Value::as_str) == Some("hello") {
+        if let Ok(mut map) = peers.lock() {
+            if let Some(peer) = map.get_mut(&device_id) {
+                peer.online = true;
+                peer.last_seen = now_ms();
+            }
+        }
+        let message_type = value.get("type").and_then(Value::as_str);
+        if message_type == Some("hello") || message_type == Some("ping") {
             continue;
         }
         let _ = app.emit(
@@ -374,14 +389,27 @@ fn start_discovery(
     }
 
     let prune_peers = peers.clone();
+    let prune_conns = conns.clone();
     let prune_app = app.clone();
     thread::spawn(move || loop {
         thread::sleep(Duration::from_secs(5));
         let now = now_ms();
         let mut changed = false;
+        let connected: std::collections::HashSet<String> = prune_conns
+            .lock()
+            .map(|map| map.keys().cloned().collect())
+            .unwrap_or_default();
         if let Ok(mut map) = prune_peers.lock() {
             map.retain(|_, peer| now.saturating_sub(peer.last_seen) < 10 * 60 * 1000);
-            for peer in map.values_mut() {
+            for (device_id, peer) in map.iter_mut() {
+                if connected.contains(device_id) {
+                    if !peer.online {
+                        changed = true;
+                    }
+                    peer.online = true;
+                    peer.last_seen = now;
+                    continue;
+                }
                 if peer.online && now.saturating_sub(peer.last_seen) > 15_000 {
                     peer.online = false;
                     changed = true;
@@ -390,6 +418,24 @@ fn start_discovery(
         }
         if changed {
             emit_peers(&prune_app, &prune_peers);
+        }
+    });
+
+    let heartbeat_conns = conns.clone();
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_secs(10));
+        let writers: Vec<Arc<Mutex<TcpStream>>> = heartbeat_conns
+            .lock()
+            .map(|map| {
+                map.values()
+                    .map(|connection| connection.writer.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        for writer in writers {
+            if let Ok(mut stream) = writer.lock() {
+                let _ = write_line(&mut stream, &json!({ "type": "ping" }));
+            }
         }
     });
 
@@ -467,6 +513,12 @@ pub fn start_collab(
     if device_id.trim().is_empty() {
         return Err("缺少设备标识".to_string());
     }
+    let previous_device = manager
+        .identity
+        .lock()
+        .map(|value| value.0.clone())
+        .unwrap_or_default();
+    let identity_changed = !previous_device.is_empty() && previous_device != device_id;
     {
         let mut identity = manager
             .identity
@@ -474,17 +526,40 @@ pub fn start_collab(
             .map_err(|_| "协作状态锁失败".to_string())?;
         *identity = (device_id.clone(), name.clone());
     }
+    if identity_changed {
+        // Switching local users gets a new device identity. Drop stale
+        // connections so peers rediscover us under the new identity.
+        let old_connections: Vec<Connection> = manager
+            .conns
+            .lock()
+            .map(|mut map| map.drain().map(|(_, connection)| connection).collect())
+            .unwrap_or_default();
+        for connection in old_connections {
+            if let Ok(stream) = connection.writer.lock() {
+                let _ = stream.shutdown(Shutdown::Both);
+            }
+        }
+        if let Ok(mut peers) = manager.peers.lock() {
+            peers.clear();
+        }
+        emit_peers(&app, &manager.peers);
+    }
     {
         let started = manager
             .started
             .lock()
             .map_err(|_| "协作状态锁失败".to_string())?;
         if let Some(port) = *started {
+            let address = local_ip()
+                .map(|ip| format!("{ip}:{port}"))
+                .unwrap_or_else(|| format!("127.0.0.1:{port}"));
             return Ok(CollabInfo {
                 supported: true,
                 device_id,
                 name,
                 port,
+                address,
+                local_address: format!("127.0.0.1:{port}"),
             });
         }
     }
@@ -525,11 +600,16 @@ pub fn start_collab(
         manager.identity.clone(),
     )?;
 
+    let address = local_ip()
+        .map(|ip| format!("{ip}:{port}"))
+        .unwrap_or_else(|| format!("127.0.0.1:{port}"));
     Ok(CollabInfo {
         supported: true,
         device_id,
         name,
         port,
+        address,
+        local_address: format!("127.0.0.1:{port}"),
     })
 }
 

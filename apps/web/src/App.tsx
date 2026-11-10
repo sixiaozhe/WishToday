@@ -3970,6 +3970,8 @@ export default function App() {
           supported={collab.supported}
           running={collab.running}
           port={collab.port}
+          lanAddress={collab.address}
+          localAddress={collab.localAddress}
           error={collab.error}
           peers={collab.peers}
           groups={collab.groups}
