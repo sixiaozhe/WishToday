@@ -9,6 +9,7 @@ import {
   SkipForward,
   Square,
   Trash2,
+  Users,
 } from 'lucide-react';
 import {
   formatDateLabel,
@@ -31,6 +32,7 @@ interface TaskRowProps {
   onTrash: (task: Task) => void;
   onRestore: (task: Task) => void;
   onRestart: (task: Task) => void;
+  assignees?: Array<{ deviceId: string; name: string }>;
 }
 
 const PRIORITY_LABEL: Record<number, string> = {
@@ -53,6 +55,7 @@ export function TaskRow({
   onTrash,
   onRestore,
   onRestart,
+  assignees = [],
 }: TaskRowProps) {
   const taskTags = tags.filter((tag) => task.tagIds.includes(tag.id));
   const completed = task.status === 'completed';
@@ -208,6 +211,15 @@ export function TaskRow({
               {tag.name}
             </span>
           ))}
+          {assignees.length > 0 && (
+            <span
+              className="meta-item task-assignees"
+              title={assignees.map((member) => member.name).join('、')}
+            >
+              <Users size={13} />
+              {assignees.map((member) => member.name.slice(0, 1)).join(' ')}
+            </span>
+          )}
           {abandoned && <span className="meta-item">已放弃</span>}
           {skipped && <span className="meta-item">已跳过</span>}
           {deleted && <span className="meta-item danger">已删除</span>}

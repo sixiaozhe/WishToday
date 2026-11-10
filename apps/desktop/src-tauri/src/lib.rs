@@ -8,6 +8,8 @@ use std::{
 };
 use tauri::{Manager, State};
 
+mod collab;
+
 struct DbManager {
     connections: Mutex<HashMap<String, Connection>>,
 }
@@ -302,8 +304,20 @@ pub fn run() {
         .manage(DbManager {
             connections: Mutex::new(HashMap::new()),
         })
+        .manage(collab::CollabManager::new())
         .invoke_handler(tauri::generate_handler![
-            db_open, db_all, db_run, db_batch, db_close, ai_request
+            db_open,
+            db_all,
+            db_run,
+            db_batch,
+            db_close,
+            ai_request,
+            collab::collab_start,
+            collab::collab_update_name,
+            collab::collab_send,
+            collab::collab_send_many,
+            collab::collab_peers,
+            collab::collab_connect
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

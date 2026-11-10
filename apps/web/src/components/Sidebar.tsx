@@ -22,6 +22,7 @@ import {
   Tags,
   Trash2,
   UserRound,
+  Users,
   X,
 } from 'lucide-react';
 import type { AppState, Folder as FolderType, Project, SavedFilter, Tag, TaskCounts } from '@dayline/core';
@@ -53,6 +54,7 @@ interface SidebarProps {
   onToggleTheme: () => void;
   onClose?: () => void;
   storageLabel?: string;
+  sharedGroupIds?: Set<string>;
 }
 
 const SMART_ICONS = {
@@ -101,6 +103,7 @@ export function Sidebar({
   onToggleTheme,
   onClose,
   storageLabel,
+  sharedGroupIds,
 }: SidebarProps) {
   const [addingProject, setAddingProject] = useState<string | null>(null);
   const [projectName, setProjectName] = useState('');
@@ -166,6 +169,9 @@ export function Sidebar({
         >
           <span className="project-dot" style={{ background: project.color }} />
           <span>{project.name}</span>
+          {sharedGroupIds?.has(project.id) && (
+            <Users size={12} className="project-shared-icon" aria-label="群组" />
+          )}
           {project.kind === 'note' && <em className="kind-badge">笔记</em>}
           {count > 0 && <em>{count}</em>}
         </button>

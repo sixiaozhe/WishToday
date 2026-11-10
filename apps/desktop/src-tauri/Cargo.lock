@@ -534,12 +534,13 @@ dependencies = [
 
 [[package]]
 name = "dayline"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "reqwest 0.12.28",
  "rusqlite",
  "serde",
  "serde_json",
+ "socket2",
  "tauri",
  "tauri-build",
 ]

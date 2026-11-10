@@ -21,6 +21,7 @@ import {
   Tag as TagIcon,
   Trash2,
   Unlink,
+  Users,
   X,
 } from 'lucide-react';
 import {
@@ -94,6 +95,9 @@ interface TaskDetailProps {
   onSaveTemplate: () => void;
   onOpenTaskByTitle: (title: string) => void;
   onEnableNotifications: () => void;
+  collabMembers?: Array<{ deviceId: string; name: string }>;
+  assignees?: string[];
+  onAssigneesChange?: (deviceIds: string[]) => void;
 }
 
 const PRIORITIES: Array<{ value: Priority; label: string }> = [
@@ -141,6 +145,9 @@ export function TaskDetail({
   onSaveTemplate,
   onOpenTaskByTitle,
   onEnableNotifications,
+  collabMembers,
+  assignees = [],
+  onAssigneesChange,
 }: TaskDetailProps) {
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.contentMd);
@@ -149,6 +156,15 @@ export function TaskDetail({
   const [subtaskTitle, setSubtaskTitle] = useState('');
   const [comment, setComment] = useState('');
   const checklistDone = task.checklist.filter((item) => item.completed).length;
+
+  function toggleAssignee(deviceId: string) {
+    if (!onAssigneesChange) return;
+    onAssigneesChange(
+      assignees.includes(deviceId)
+        ? assignees.filter((id) => id !== deviceId)
+        : [...assignees, deviceId],
+    );
+  }
   const completed = task.status === 'completed';
   const skipped = task.status === 'skipped';
   const deleted = task.deletedAt !== null;
@@ -760,6 +776,37 @@ export function TaskDetail({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {collabMembers && collabMembers.length > 0 && onAssigneesChange && (
+          <div className="detail-section">
+            <span className="detail-label">
+              <Users size={14} />
+              关联成员
+              {assignees.length > 0 && <em>{assignees.length}</em>}
+            </span>
+            <div className="assignee-picker">
+              {collabMembers.map((member) => {
+                const active = assignees.includes(member.deviceId);
+                return (
+                  <button
+                    key={member.deviceId}
+                    type="button"
+                    className={`assignee-chip ${active ? 'is-active' : ''}`}
+                    onClick={() => toggleAssignee(member.deviceId)}
+                  >
+                    <span className="member-initial">
+                      {member.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    {member.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="field-hint">
+              被关联的成员会在群清单中看到这个任务，并显示这里的成员头像。
+            </p>
           </div>
         )}
 

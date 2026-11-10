@@ -6340,3 +6340,479 @@ kbd {
   color: var(--text-muted);
   font-size: 10.5px;
 }
+
+/* LAN collaboration -------------------------------------------------------- */
+
+.collab-trigger {
+  position: relative;
+}
+
+.collab-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--success);
+  color: #fff;
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.project-shared-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.collab-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+.collab-banner-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.collab-banner-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.collab-banner-main strong {
+  font-size: 12.5px;
+}
+
+.collab-banner-main span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.collab-banner-members {
+  display: flex;
+  margin-left: 4px;
+}
+
+.collab-banner-members span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-left: -6px;
+  border: 2px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.collab-banner-members span:first-child {
+  margin-left: 0;
+}
+
+.collab-banner > .button {
+  margin-left: auto;
+}
+
+.collab-notice,
+.collab-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.collab-status.is-online {
+  border-color: rgba(18, 161, 80, 0.3);
+  background: rgba(18, 161, 80, 0.07);
+  color: var(--success);
+}
+
+.collab-status em {
+  margin-left: auto;
+  color: var(--danger);
+  font-style: normal;
+  font-size: 11px;
+}
+
+.collab-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.collab-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.collab-section-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.collab-count {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.collab-peer-list,
+.collab-group-list,
+.collab-invites {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.collab-peer,
+.collab-group,
+.collab-invite {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.collab-peer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+}
+
+.peer-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.peer-avatar.is-offline {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.peer-avatar i {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.peer-avatar i.is-online {
+  background: var(--success);
+}
+
+.collab-peer-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.collab-peer-main strong {
+  font-size: 12.5px;
+}
+
+.collab-peer-main span {
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collab-peer-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.collab-peer-action select {
+  height: 28px;
+  max-width: 130px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.collab-peer-hint {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.collab-group {
+  padding: 10px 11px;
+}
+
+.collab-group-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.collab-group-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.collab-group-head strong {
+  font-size: 12.5px;
+}
+
+.collab-group-head span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.collab-group-members {
+  display: flex;
+  align-items: center;
+  margin-top: 7px;
+}
+
+.member-chip {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -5px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.member-chip:first-child {
+  margin-left: 0;
+}
+
+.collab-group-members em {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collab-create {
+  display: flex;
+  gap: 8px;
+}
+
+.collab-create input {
+  flex: 1;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.collab-create input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.collab-invite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+}
+
+.collab-invite > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.collab-invite strong {
+  font-size: 12.5px;
+}
+
+.collab-invite span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.invite-prompt {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.invite-prompt-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.invite-prompt > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.invite-prompt strong {
+  font-size: 13px;
+}
+
+.invite-prompt span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.invite-prompt-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.assignee-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.assignee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.assignee-chip:hover {
+  border-color: var(--accent);
+}
+
+.assignee-chip.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.member-initial {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.assignee-chip.is-active .member-initial {
+  background: var(--accent);
+  color: #fff;
+}
+
+.task-assignees {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 720px) {
+  .collab-banner {
+    flex-wrap: wrap;
+  }
+
+  .collab-banner > .button {
+    margin-left: 0;
+  }
+
+  .collab-peer {
+    flex-wrap: wrap;
+  }
+
+  .collab-peer-action {
+    width: 100%;
+    margin-left: 41px;
+  }
+
+  .collab-peer-action select {
+    flex: 1;
+    max-width: none;
+  }
+}

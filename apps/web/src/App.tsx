@@ -17,6 +17,7 @@ import {
   Sun,
   Undo2,
   Redo2,
+  Users,
   X,
 } from 'lucide-react';
 import {
@@ -104,6 +105,8 @@ import { StatsView } from './components/StatsView';
 import { SummaryView } from './components/SummaryView';
 import { AssistantDock, type AssistantSeed } from './components/AssistantDock';
 import { TaskContextMenu } from './components/TaskContextMenu';
+import { CollabDialog, InvitePrompt } from './components/CollabDialog';
+import { useCollab } from './collab/useCollab';
 import type { AiAction, AiApplyResult } from './ai/actions';
 import { loadAiSettings, saveAiSettings, type AiSettings } from './ai/settings';
 import { NoteView } from './components/NoteView';
@@ -238,6 +241,7 @@ export default function App() {
   const [aiSettings, setAiSettings] = useState<AiSettings>(() => loadAiSettings());
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantSeed, setAssistantSeed] = useState<AssistantSeed | null>(null);
+  const [collabOpen, setCollabOpen] = useState(false);
   const [taskMenu, setTaskMenu] = useState<{
     x: number;
     y: number;
@@ -273,6 +277,18 @@ export default function App() {
   const undoRef = useRef<AppState[]>([]);
   const redoRef = useRef<AppState[]>([]);
   const attachmentMigrationRef = useRef(false);
+
+  const collab = useCollab({
+    profileId: state?.profile.id ?? '',
+    displayName:
+      users.find((user) => user.id === activeUserId)?.name ?? '我',
+    state,
+    stateRef,
+    repository,
+    repositoryRef,
+    commit,
+    notify: (title, body) => setToast({ title, body }),
+  });
 
   useEffect(() => {
     stateRef.current = state;
@@ -3313,6 +3329,10 @@ export default function App() {
         (task) => task.id === taskMenu.taskId && !task.deletedAt,
       ) ?? null
     : null;
+  const collabOnlineCount = collab.peers.filter((peer) => peer.online).length;
+  const currentCollabGroup =
+    view.kind === 'project' ? collab.groupForProject(view.id) : undefined;
+  const pendingCollabInvite = collab.invites[0];
 
   return (
     <div
@@ -3357,6 +3377,7 @@ export default function App() {
         onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
         onClose={() => setSidebarOpen(false)}
         storageLabel={storageLabel}
+        sharedGroupIds={new Set(collab.groups.map((group) => group.id))}
       />
 
       {sidebarOpen && (
@@ -3410,6 +3431,18 @@ export default function App() {
               title="重做 Ctrl+Shift+Z"
             >
               <Redo2 size={17} />
+            </button>
+
+            <button
+              className="icon-button collab-trigger"
+              onClick={() => setCollabOpen(true)}
+              aria-label="局域网协作"
+              title="局域网协作"
+            >
+              <Users size={17} />
+              {collabOnlineCount > 0 && (
+                <span className="collab-badge">{collabOnlineCount}</span>
+              )}
             </button>
 
             <NotificationCenter
@@ -3498,6 +3531,38 @@ export default function App() {
               }
               onSubmit={handleCreateTask}
             />
+          )}
+
+          {currentCollabGroup && (
+            <div className="collab-banner">
+              <span className="collab-banner-icon">
+                <Users size={15} />
+              </span>
+              <div className="collab-banner-main">
+                <strong>{currentCollabGroup.name}</strong>
+                <span>
+                  {currentCollabGroup.ownerId === collab.deviceId
+                    ? '我创建的群组'
+                    : `群主：${currentCollabGroup.ownerName}`}
+                  {' · '}
+                  {currentCollabGroup.members.length} 人
+                </span>
+              </div>
+              <div className="collab-banner-members">
+                {currentCollabGroup.members.slice(0, 8).map((member) => (
+                  <span key={member.deviceId} title={member.name}>
+                    {member.name.slice(0, 1).toUpperCase()}
+                  </span>
+                ))}
+              </div>
+              <button
+                className="button ghost small"
+                onClick={() => setCollabOpen(true)}
+              >
+                <Users size={14} />
+                邀请成员
+              </button>
+            </div>
           )}
 
           {isModuleView ? (
@@ -3647,6 +3712,7 @@ export default function App() {
               onTrash={handleTrash}
               onRestore={handleRestore}
               onRestart={handleRestart}
+              assigneesForTask={(task) => collab.membersForTask(task)}
             />
           )}
         </div>
@@ -3669,6 +3735,16 @@ export default function App() {
           comments={selectedComments}
           attachments={selectedAttachments}
           notificationPermission={notificationPermission}
+          collabMembers={
+            collab.groupForProject(selectedTask.projectId)?.members
+          }
+          assignees={collab.assigneesForTask(selectedTask)}
+          onAssigneesChange={(deviceIds) => {
+            const group = collab.groupForProject(selectedTask.projectId);
+            if (group) {
+              void collab.assignTask(group.id, selectedTask.id, deviceIds);
+            }
+          }}
           onClose={() => setSelectedTaskId(null)}
           onUpdate={handleUpdate}
           onToggle={handleToggle}
@@ -3886,6 +3962,37 @@ export default function App() {
             setTaskMenu(null);
           }}
           onClose={() => setTaskMenu(null)}
+        />
+      )}
+
+      {collabOpen && (
+        <CollabDialog
+          supported={collab.supported}
+          running={collab.running}
+          port={collab.port}
+          error={collab.error}
+          peers={collab.peers}
+          groups={collab.groups}
+          invites={collab.invites}
+          deviceId={collab.deviceId}
+          onClose={() => setCollabOpen(false)}
+          onCreateGroup={collab.createGroup}
+          onInvite={collab.inviteToGroup}
+          onAcceptInvite={collab.acceptInvite}
+          onDeclineInvite={collab.declineInvite}
+          onOpenGroup={(groupId) => {
+            handleSelectView({ kind: 'project', id: groupId });
+            setViewMode('list');
+          }}
+          onConnect={collab.connectPeer}
+        />
+      )}
+
+      {pendingCollabInvite && !collabOpen && (
+        <InvitePrompt
+          invite={pendingCollabInvite}
+          onAccept={() => void collab.acceptInvite(pendingCollabInvite)}
+          onDecline={() => collab.declineInvite(pendingCollabInvite)}
         />
       )}
 

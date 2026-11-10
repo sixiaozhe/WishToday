@@ -25,6 +25,10 @@ interface TaskListProps {
   onTrash: (task: Task) => void;
   onRestore: (task: Task) => void;
   onRestart: (task: Task) => void;
+  assigneesForTask?: (task: Task) => Array<{
+    deviceId: string;
+    name: string;
+  }>;
 }
 
 interface TaskGroup {
@@ -93,6 +97,7 @@ export function TaskList({
   onTrash,
   onRestore,
   onRestart,
+  assigneesForTask,
 }: TaskListProps) {
   if (tasks.length === 0) {
     const copy = emptyCopy(view, search);
@@ -136,6 +141,7 @@ export function TaskList({
                 onTrash={onTrash}
                 onRestore={onRestore}
                 onRestart={onRestart}
+                assignees={assigneesForTask?.(task)}
               />
             ))}
           </div>
