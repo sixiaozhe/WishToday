@@ -27,7 +27,8 @@ import type {
 } from './types';
 
 interface UseCollabOptions {
-  profileId: string;
+  /** Local user id (not the database profile id, which is shared by users). */
+  userId: string;
   displayName: string;
   state: AppState | null;
   stateRef: RefObject<AppState | null>;
@@ -96,7 +97,7 @@ async function invokeCollab<T>(
 }
 
 export function useCollab({
-  profileId,
+  userId,
   displayName,
   state,
   stateRef,
@@ -106,10 +107,10 @@ export function useCollab({
   notify,
 }: UseCollabOptions) {
   const [supported] = useState(() => isTauri());
-  const [deviceId, setDeviceId] = useState(() => getDeviceId(profileId));
+  const [deviceId, setDeviceId] = useState(() => getDeviceId(userId));
   const [peers, setPeers] = useState<CollabPeer[]>([]);
   const [groups, setGroups] = useState<CollabGroup[]>(
-    () => loadCollab(profileId).groups,
+    () => loadCollab(userId).groups,
   );
   const [invites, setInvites] = useState<CollabInvite[]>([]);
   const [running, setRunning] = useState(false);
@@ -134,7 +135,7 @@ export function useCollab({
 
   function setGroupsNow(next: CollabGroup[]) {
     groupsRef.current = next;
-    saveCollab(profileId, { groups: next });
+    saveCollab(userId, { groups: next });
     setGroups(next);
   }
 
@@ -163,9 +164,9 @@ export function useCollab({
   }, [displayName]);
 
   useEffect(() => {
-    if (!profileId) return;
-    const nextDeviceId = getDeviceId(profileId);
-    const loaded = loadCollab(profileId).groups;
+    if (!userId) return;
+    const nextDeviceId = getDeviceId(userId);
+    const loaded = loadCollab(userId).groups;
     const normalized: CollabGroup[] = [];
     const pending: string[] = [];
     for (const group of loaded) {
@@ -180,13 +181,13 @@ export function useCollab({
       }
     }
     groupsRef.current = normalized;
-    saveCollab(profileId, { groups: normalized });
+    saveCollab(userId, { groups: normalized });
     setGroups(normalized);
     setInvitesNow([]);
     baselineRef.current.clear();
     rejoinRef.current = new Set(pending);
     setDeviceId(nextDeviceId);
-  }, [profileId]);
+  }, [userId]);
 
   useEffect(() => {
     if (!supported || !deviceId) return;

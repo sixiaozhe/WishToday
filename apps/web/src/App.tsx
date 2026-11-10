@@ -279,7 +279,9 @@ export default function App() {
   const attachmentMigrationRef = useRef(false);
 
   const collab = useCollab({
-    profileId: state?.profile.id ?? '',
+    // The database profile id is the same for every local user, so use the
+    // local user id to keep device identities and groups isolated.
+    userId: activeUserId,
     displayName:
       users.find((user) => user.id === activeUserId)?.name ?? '我',
     state,
