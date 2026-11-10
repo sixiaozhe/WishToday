@@ -47,6 +47,8 @@ export interface CollabProjectPayload {
 export interface ChatMessage {
   id: string;
   groupId: string;
+  /** null/undefined = group chat, otherwise a task discussion thread. */
+  taskId?: string | null;
   senderId: string;
   senderName: string;
   content: string;

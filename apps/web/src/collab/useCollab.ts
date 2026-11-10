@@ -559,7 +559,11 @@ export function useCollab({
     });
   }
 
-  function sendChat(groupId: string, content: string): void {
+  function sendChat(
+    groupId: string,
+    content: string,
+    taskId: string | null = null,
+  ): void {
     const text = content.trim();
     if (!text || !deviceId) return;
     const group = groupsRef.current.find((item) => item.id === groupId);
@@ -567,6 +571,7 @@ export function useCollab({
     const message: ChatMessage = {
       id: `chat-${randomToken()}`,
       groupId,
+      taskId,
       senderId: deviceId,
       senderName: displayNameRef.current,
       content: text.slice(0, 4000),
@@ -1099,7 +1104,10 @@ export function useCollab({
     groupForProject,
     membersForTask,
     assigneesForTask,
-    chatForGroup: (groupId: string) => chat[groupId] ?? [],
+    chatForGroup: (groupId: string, taskId: string | null = null) =>
+      (chat[groupId] ?? []).filter(
+        (message) => (message.taskId ?? null) === taskId,
+      ),
     sendChat,
     dismissInvite,
   };

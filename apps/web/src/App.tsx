@@ -688,6 +688,9 @@ export default function App() {
       : null;
   const currentCollabGroup =
     view.kind === 'project' ? collab.groupForProject(view.id) : undefined;
+  const selectedCollabGroup = selectedTask
+    ? collab.groupForProject(selectedTask.projectId)
+    : undefined;
   const inGroupChat = Boolean(currentCollabGroup && groupChatOpen);
   const isModuleView = view.kind === 'module';
   const showTaskChrome = !isModuleView && !noteProject && !inGroupChat;
@@ -3778,6 +3781,24 @@ export default function App() {
               void collab.assignTask(group.id, selectedTask.id, deviceIds);
             }
           }}
+          collabChat={
+            selectedCollabGroup
+              ? collab.chatForGroup(selectedCollabGroup.id, selectedTask.id)
+              : undefined
+          }
+          collabDeviceId={
+            selectedCollabGroup ? collab.deviceId : undefined
+          }
+          onSendCollabChat={
+            selectedCollabGroup
+              ? (content) =>
+                  collab.sendChat(
+                    selectedCollabGroup.id,
+                    content,
+                    selectedTask.id,
+                  )
+              : undefined
+          }
           onClose={() => setSelectedTaskId(null)}
           onUpdate={handleUpdate}
           onToggle={handleToggle}

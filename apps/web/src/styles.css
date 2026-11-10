@@ -7167,3 +7167,59 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Task discussion ---------------------------------------------------------- */
+
+.task-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 240px;
+  padding: 4px 2px;
+  overflow-y: auto;
+}
+
+.task-chat .chat-message {
+  max-width: 90%;
+}
+
+.task-chat .chat-bubble {
+  font-size: 12px;
+}
+
+.task-chat-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+}
+
+.task-chat-composer textarea {
+  flex: 1;
+  min-height: 38px;
+  max-height: 110px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  resize: none;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.task-chat-composer textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.task-chat-composer .button {
+  flex-shrink: 0;
+}

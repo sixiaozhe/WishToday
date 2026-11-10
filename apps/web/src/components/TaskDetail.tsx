@@ -24,6 +24,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import type { ChatMessage } from '../collab/types';
 import {
   formatDurationLabel,
   formatReminderTime,
@@ -47,6 +48,7 @@ import {
 import { ruleLabel } from '@dayline/recurrence';
 import { Markdown } from './Markdown';
 import { AttachmentItem } from './AttachmentItem';
+import { TaskChat } from './TaskChat';
 import { Select } from './controls/Select';
 import { DatePicker } from './controls/DatePicker';
 import { TimePicker } from './controls/TimePicker';
@@ -98,6 +100,9 @@ interface TaskDetailProps {
   collabMembers?: Array<{ deviceId: string; name: string }>;
   assignees?: string[];
   onAssigneesChange?: (deviceIds: string[]) => void;
+  collabChat?: ChatMessage[];
+  collabDeviceId?: string;
+  onSendCollabChat?: (content: string) => void;
 }
 
 const PRIORITIES: Array<{ value: Priority; label: string }> = [
@@ -148,6 +153,9 @@ export function TaskDetail({
   collabMembers,
   assignees = [],
   onAssigneesChange,
+  collabChat,
+  collabDeviceId,
+  onSendCollabChat,
 }: TaskDetailProps) {
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.contentMd);
@@ -809,6 +817,16 @@ export function TaskDetail({
               {collabMembers.length < 2 &&
                 ' 目前群组里只有你，等待其他成员加入后这里会显示他们。'}
             </p>
+          </div>
+        )}
+
+        {collabChat && collabDeviceId && onSendCollabChat && (
+          <div className="detail-section">
+            <TaskChat
+              messages={collabChat}
+              deviceId={collabDeviceId}
+              onSend={onSendCollabChat}
+            />
           </div>
         )}
 

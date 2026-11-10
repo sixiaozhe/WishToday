@@ -1,6 +1,6 @@
 [package]
 name = "dayline"
-version = "0.3.7"
+version = "0.3.8"
 description = "Local-first task and time management"
 authors = ["Dayline"]
 edition = "2021"
